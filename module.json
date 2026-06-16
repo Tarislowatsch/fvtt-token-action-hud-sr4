@@ -1,0 +1,63 @@
+{
+  "id": "token-action-hud-sr4",
+  "title": "Token Action HUD - Shadowrun 4e",
+  "description": "Token Action HUD integration for the Shadowrun 4th Edition system.",
+  "version": "1.1.0",
+  "manifest": "https://raw.githubusercontent.com/tarislowatsch/tvtt-token-action-hud-sr4/main/module.json",
+  "download": "https://github.com/Tarislowatsch/fvtt-token-action-hud-sr4/releases/download/v1.1.0/token-action-hud-sr4.zip",
+  "authors": [
+    {
+      "name": "dweiss"
+    }
+  ],
+  "compatibility": {
+    "minimum": "14",
+    "verified": "14"
+  },
+  "relationships": {
+    "systems": [
+      {
+        "id": "shadowrun4e",
+        "type": "system",
+        "compatibility": {
+          "minimum": "0.1.0"
+        }
+      }
+    ],
+    "requires": [
+      {
+        "id": "token-action-hud-core",
+        "type": "module",
+        "compatibility": {
+          "minimum": "2.0.0"
+        }
+      }
+    ]
+  },
+  "styles": [
+    "./src/token-action-hud-sr4.css"
+  ],
+  "esmodules": [
+    "./src/system-manager.js"
+  ],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    },
+    {
+      "lang": "de",
+      "name": "Deutsch",
+      "path": "lang/de.json"
+    }
+  ],
+  "flags": {
+    "token-action-hud-core": {
+      "api": {
+        "module": "token-action-hud-sr4",
+        "class": "SR4SystemManager"
+      }
+    }
+  }
+}

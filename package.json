@@ -1,0 +1,13 @@
+{
+  "dependencies": {
+    "dotenv": "^17.4.2"
+  },
+  "scripts": {
+    "watch": "node watch.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.8"
+  }
+}

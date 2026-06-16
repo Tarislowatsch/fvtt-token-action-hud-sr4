@@ -1,0 +1,85 @@
+{
+  "sr4": {
+    "hud": {
+      "activeSkills": "Active Skills",
+      "actions": {
+        "tab": "Actions"
+      },
+      "basics": "Basics",
+      "edge": {
+        "add": "Add Edge point",
+        "addTooltip": "Click to add an Edge point",
+        "double": "Edge x 2",
+        "doubleTooltip": "Roll double Edge",
+        "management": "Edge Management",
+        "maxreached": "Maximum reached",
+        "nocurrent": "No Edge points available",
+        "reset": "Reset Edge points",
+        "resetTooltip": "Click to reset all Edge points",
+        "spend": "Spend Edge point",
+        "spendTooltip": "Click to spend an Edge point",
+        "tab": "Edge"
+      },
+      "monitor": {
+        "tab": "Condition Monitor",
+        "physical": "Physical Monitor",
+        "stun": "Stun Monitor",
+        "reset": "Reset",
+        "deal": "Deal Damage",
+        "dealAmount": "Damage amount"
+      },
+      "freeRoll": "Free Roll",
+      "freeRollTooltip": "Manually enter dice pool",
+      "improvise": "Improvised",
+      "improvisedRoll": "Improvised Skill:",
+      "knowledgeSkills": "Knowledge Skills",
+      "misc": {
+        "tab": "Misc."
+      },
+      "rating": "Rating",
+      "specialization": "Spec.",
+      "skills": {
+        "combat": "Combat",
+        "physical": "Physical",
+        "social": "Social",
+        "technical": "Technical",
+        "matrix": "Matrix",
+        "magic": "Magic",
+        "vehicle": "Vehicle",
+        "misc": "Miscellaneous",
+        "academic": "Academic",
+        "street": "Street",
+        "language": "Language",
+        "hobby": "Hobby",
+        "resonance": "Resonance"
+      },
+      "soak": {
+        "tab": "Soak",
+        "willpower": "Willpower",
+        "body": "Body",
+        "bodyImpact": "BOD + Impact Armor",
+        "bodyBallistic": "BOD + Ballistic Armor"
+      },
+      "spells": {
+        "tab": "Spells"
+      },
+      "weapons": "Weapons",
+      "effects": {
+        "tab": "Effects",
+        "templates": "Quick Effects",
+        "active": "Active Effects",
+        "addSustain": "Sustain Spell",
+        "addSustainTooltip": "Apply -2 sustain penalty (stackable)",
+        "addDisoriented": "Disoriented (Electricity)",
+        "addDisorientedTooltip": "Apply -2 disorientation penalty",
+        "addBlind": "Blinded",
+        "addBlindTooltip": "Apply -4 attack penalty (1 turn)",
+        "addBlindFlareComp": "Blinded (Flare Comp.)",
+        "addBlindFlareCompTooltip": "Apply -2 attack penalty with flare compensation (1 turn)",
+        "addKnockedDown": "Knocked Down",
+        "addKnockedDownTooltip": "Apply -2 general penalty (persistent)",
+        "deleteHint": "Ctrl+Click to remove"
+      }
+    }
+  }
+}

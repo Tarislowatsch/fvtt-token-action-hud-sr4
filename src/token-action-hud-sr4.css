@@ -1,0 +1,44 @@
+/* =============================================================================
+   Token Action HUD - Shadowrun 4e
+   Custom styles
+   ============================================================================= */
+
+/* --- Subgroup title (Combat, Social, Technical, ...) ----------------------- */
+
+#token-action-hud .tah-list-subgroup-title {
+  background-color: #003f3f !important;
+  border: 1px solid #008080 !important;
+  color: #b2dfdf !important;
+  min-height: 1rem !important;
+  padding: 6px 12px !important;
+  font-size: 0.9rem !important;
+}
+
+#token-action-hud .tah-list-subgroup-title:hover {
+  background-color: #008080 !important;
+  border-color: #00b3b3 !important;
+  color: #ffffff !important;
+}
+
+#token-action-hud .tah-list-subgroup-title-text {
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+  color: inherit !important;
+}
+
+/* --- Action buttons --------------------------------------------------------- */
+
+#token-action-hud .tah-action-button {
+  min-height: 1.5rem !important;
+  font-size: 0.8rem !important;
+  padding: 4px 6px !important;
+}
+
+/* --- Scrollable action list ------------------------------------------------- */
+
+#token-action-hud .tah-actions {
+  max-height: 320px !important;
+  overflow-y: auto !important;
+  scrollbar-width: thin;
+  scrollbar-color: #008080 #001f1f;
+}

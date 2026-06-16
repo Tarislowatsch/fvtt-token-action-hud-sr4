@@ -1,0 +1,85 @@
+{
+  "sr4": {
+    "hud": {
+      "activeSkills": "Aktive Fertigkeiten",
+      "actions": {
+        "tab": "Aktionen"
+      },
+      "basics": "Basics",
+      "edge": {
+        "add": "Edge hinzufügen",
+        "addTooltip": "Klicke, um einen Edge-Punkt hinzuzufügen",
+        "double": "Edge x 2",
+        "doubleTooltip": "Doppeltes Edge würfeln",
+        "management": "Edge Verwaltung",
+        "maxreached": "Maximum erreicht",
+        "nocurrent": "Kein Edge mehr verfügbar",
+        "reset": "Edge zurücksetzen",
+        "resetTooltip": "Klicke, um alle Edge-Punkte zurückzusetzen",
+        "spend": "Edge ausgeben",
+        "spendTooltip": "Klicke, um einen Edge-Punkt auszugeben",
+        "tab": "Edge"
+      },
+      "monitor": {
+        "tab": "Zustandsmonitor",
+        "physical": "Körperlicher Zustandsmonitor",
+        "stun": "Geistiger Zustandsmonitor",
+        "reset": "Zurücksetzen",
+        "deal": "Schaden austeilen",
+        "dealAmount": "Schadensmenge"
+      },
+      "freeRoll": "Manuelles Würfeln",
+      "freeRollTooltip": "Manuelles Würfeln",
+      "improvise": "Improvisieren",
+      "improvisedRoll": "Improvisierte Fertigkeit:",
+      "knowledgeSkills": "Wissensfertigkeiten",
+      "misc": {
+        "tab": "Sonstiges"
+      },
+      "rating": "Stufe",
+      "specialization": "Spez.",
+      "skills": {
+        "combat": "Kampf",
+        "physical": "Körperlich",
+        "social": "Sozial",
+        "technical": "Technisch",
+        "matrix": "Matrix",
+        "magic": "Magie",
+        "vehicle": "Fahrzeuge",
+        "misc": "Sonstiges",
+        "academic": "Akademisch",
+        "street": "Straße",
+        "language": "Sprachen",
+        "hobby": "Hobby",
+        "resonance": "Resonanz"
+      },
+      "soak": {
+        "tab": "Widerstand",
+        "willpower": "Willenskraft",
+        "body": "Konstitution",
+        "bodyImpact": "KON + Stoßpanzerung",
+        "bodyBallistic": "KON + Ballistische Panzerung"
+      },
+      "spells": {
+        "tab": "Zauber"
+      },
+      "weapons": "Waffen",
+      "effects": {
+        "tab": "Effekte",
+        "templates": "Statuseffekte",
+        "active": "Aktive Effekte",
+        "addSustain": "Zauber aufrechterhalten",
+        "addSustainTooltip": "-2 Würfelpool-Malus hinzufügen (stapelbar)",
+        "addDisoriented": "Desorientiert (Elektrizität)",
+        "addDisorientedTooltip": "-2 Desorientierungsstrafe hinzufügen",
+        "addBlind": "Geblendet",
+        "addBlindTooltip": "-4 Angriffswürfel-Malus hinzufügen (1 Runde)",
+        "addBlindFlareComp": "Geblendet (Blendschutz)",
+        "addBlindFlareCompTooltip": "-2 Angriffswürfel-Malus hinzufügen mit Blendschutz (1 Runde)",
+        "addKnockedDown": "Niedergeworfen",
+        "addKnockedDownTooltip": "-2 allgemeine Malus hinzufügen (dauerhaft)",
+        "deleteHint": "Strg+Klick zum Entfernen"
+      }
+    }
+  }
+}
