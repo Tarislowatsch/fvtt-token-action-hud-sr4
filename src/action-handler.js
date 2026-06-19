@@ -34,6 +34,9 @@ export function createActionHandler(coreModule) {
       this.#buildSpells(actor);
       this.#buildMonitor(actor);
       this.#buildActions(actor);
+      this.#buildItemActionsEffects(actor, 'Power', 'powers');
+      this.#buildItemActionsEffects(actor, 'CritterPower', 'powers');
+      this.#buildItemActionsEffects(actor, 'Implant', 'implants');
       this.#buildEffects(actor);
     }
 
@@ -93,25 +96,66 @@ export function createActionHandler(coreModule) {
       this.#buildAttributes(actor);
       this.#buildFreeRoll();
       this.#buildEdge(actor);
-      this.#buildSpiritPowers(actor);
+      this.#buildItemActionsEffects(actor, 'CritterPower', 'powers');
       this.#buildSkills(actor, 'active', ACTIVE_SKILL_CATEGORIES, 'active-skills', s => s.system.category ?? 'misc');
       this.#buildMonitor(actor);
       this.#buildEffects(actor);
     }
 
-    #buildSpiritPowers(actor) {
-      const actions = actor.items
-        .filter(i => i.type === 'Power')
-        .map(p => ({
-          id:           p.id,
-          name:         p.name,
-          img:          p.img ?? 'icons/svg/d20.svg',
-          encodedValue: 'freeRoll|free-roll',
-          tooltip:      p.system.description ?? p.name,
-        }));
-      if (actions.length) {
-        this.addActions(actions, { id: 'weapons-list', nestId: 'weapons_weapons-list', type: 'system' });
+    #buildItemActionsEffects(actor, type, groupPrefix) {
+      const items = actor.items.filter(i => i.type === type);
+      if (!items.length) return;
+
+      const itemActions = items.map(item => ({
+        id:           item.id,
+        name:         item.name,
+        img:          item.img ?? 'icons/svg/aura.svg',
+        encodedValue: `itemSheet|${item.id}`,
+        tooltip:      item.system.description ?? item.name,
+      }));
+
+      const { linkedActions, effectActions } = this.#collectLinkedActionsAndEffects(actor, items);
+
+      this.addActions(itemActions, { id: `${groupPrefix}-list`, nestId: `${groupPrefix}_${groupPrefix}-list`, type: 'system' });
+      if (linkedActions.length) this.addActions(linkedActions, { id: `${groupPrefix}-actions`, nestId: `${groupPrefix}_${groupPrefix}-actions`, type: 'system' });
+      if (effectActions.length) this.addActions(effectActions, { id: `${groupPrefix}-effects`, nestId: `${groupPrefix}_${groupPrefix}-effects`, type: 'system' });
+    }
+
+    #collectLinkedActionsAndEffects(actor, items) {
+      const actionsByLinkedId = new Map();
+      for (const a of actor.items.filter(i => i.type === 'Action' && i.system.linkedItemId)) {
+        const list = actionsByLinkedId.get(a.system.linkedItemId);
+        if (list) list.push(a);
+        else actionsByLinkedId.set(a.system.linkedItemId, [a]);
       }
+
+      const linkedActions = [];
+      const effectActions = [];
+
+      for (const item of items) {
+        for (const a of actionsByLinkedId.get(item.id) ?? []) {
+          linkedActions.push({
+            id:           a.id,
+            name:         `${item.name}: ${a.name}`,
+            img:          a.img ?? 'icons/svg/d20.svg',
+            encodedValue: `action|${a.id}`,
+            tooltip:      `${a.name} · ${a.system.actionType ?? ''}`,
+          });
+        }
+
+        for (const e of item.effects?.contents ?? []) {
+          effectActions.push({
+            id:           `${item.id}-${e.id}`,
+            name:         `${item.name}: ${e.name}`,
+            img:          e.img ?? 'icons/svg/aura.svg',
+            encodedValue: `itemEffectToggle|${item.id}:${e.id}`,
+            cssClass:     e.disabled ? '' : 'active',
+            tooltip:      `${e.name} — ${loc('sr4.hud.effects.toggleHint')}`,
+          });
+        }
+      }
+
+      return { linkedActions, effectActions };
     }
 
     // -----------------------------------------------------------------------
@@ -253,13 +297,26 @@ export function createActionHandler(coreModule) {
       const actions = [];
 
       for (const w of actor.items.filter(i => i.type === 'Ranged Weapon' || i.type === 'Melee Weapon')) {
+        const dmg = w.system.effectiveDamage ?? w.system.damage ?? '?';
+        const ap = w.system.effectiveAP ?? w.system.ap ?? '?';
         actions.push({
           id:           w.id,
           name:         w.name,
           img:          w.img,
           encodedValue: `weapon|${w.id}`,
-          tooltip:      `${w.name} · DMG: ${w.system.damage ?? '?'} AP: ${w.system.ap ?? '?'}`,
+          tooltip:      `${w.name} · DMG: ${dmg} AP: ${ap}`,
         });
+
+        if (w.type === 'Melee Weapon') {
+          actions.push({
+            id:           `equip-${w.id}`,
+            name:         `${w.system.equipped ? '✦' : '○'} ${w.name}`,
+            img:          w.system.equipped ? 'icons/svg/sword.svg' : 'icons/svg/item-bag.svg',
+            encodedValue: `equip|${w.id}`,
+            cssClass:     w.system.equipped ? 'active' : '',
+            tooltip:      `${loc('sr4.hud.weapons.equip')}: ${w.name}`,
+          });
+        }
 
         if (w.type === 'Ranged Weapon' && w.system.maxAmmo > 0) {
           actions.push({
@@ -270,6 +327,17 @@ export function createActionHandler(coreModule) {
             tooltip:      `${loc('sr4.weapon.reload')}: ${w.system.currentAmmo}/${w.system.maxAmmo}`,
           });
         }
+      }
+
+      for (const a of actor.items.filter(i => i.type === 'Armor')) {
+        actions.push({
+          id:           `equip-${a.id}`,
+          name:         `${a.system.equipped ? '✦' : '○'} ${a.name}`,
+          img:          a.system.equipped ? 'icons/svg/shield.svg' : 'icons/svg/item-bag.svg',
+          encodedValue: `equip|${a.id}`,
+          cssClass:     a.system.equipped ? 'active' : '',
+          tooltip:      `${loc('sr4.hud.weapons.equip')}: ${a.name}`,
+        });
       }
 
       this.addActions(actions, { id: 'weapons-list', nestId: 'weapons_weapons-list', type: 'system' });
@@ -283,7 +351,6 @@ export function createActionHandler(coreModule) {
       if (!actor.getAttribute('MAGIC')) return;
 
       const spells = actor.items.filter(i => i.type === 'Spell');
-
       for (const category of SPELL_CATEGORIES) {
         const actions = spells
           .filter(s => s.system.category === category)
@@ -304,6 +371,11 @@ export function createActionHandler(coreModule) {
           type:   'system',
         });
       }
+
+      const { linkedActions, effectActions } = this.#collectLinkedActionsAndEffects(actor, spells);
+
+      if (linkedActions.length) this.addActions(linkedActions, { id: 'spells-actions', nestId: 'spells_spells-actions', type: 'system' });
+      if (effectActions.length) this.addActions(effectActions, { id: 'spells-effects', nestId: 'spells_spells-effects', type: 'system' });
     }
 
     #spellTooltip(spell) {
@@ -341,7 +413,7 @@ export function createActionHandler(coreModule) {
 
     #buildActions(actor) {
       const actions = actor.items
-        .filter(i => i.type === 'Action')
+        .filter(i => i.type === 'Action' && !i.system.linkedItemId)
         .map(a => ({
           id:           a.id,
           name:         a.name,

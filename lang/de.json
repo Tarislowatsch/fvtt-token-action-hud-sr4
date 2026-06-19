@@ -61,9 +61,24 @@
         "bodyBallistic": "KON + Ballistische Panzerung"
       },
       "spells": {
-        "tab": "Zauber"
+        "tab": "Zauber",
+        "actions": "Zauber-Aktionen",
+        "effects": "Zauber-Effekte"
       },
-      "weapons": "Waffen",
+      "weapons": {
+        "tab": "Waffen",
+        "equip": "Ausrüsten umschalten"
+      },
+      "powers": {
+        "tab": "Kräfte",
+        "actions": "Kraft-Aktionen",
+        "effects": "Kraft-Effekte"
+      },
+      "implants": {
+        "tab": "Implantate",
+        "actions": "Implantat-Aktionen",
+        "effects": "Implantat-Effekte"
+      },
       "effects": {
         "tab": "Effekte",
         "templates": "Statuseffekte",
@@ -78,7 +93,8 @@
         "addBlindFlareCompTooltip": "-2 Angriffswürfel-Malus hinzufügen mit Blendschutz (1 Runde)",
         "addKnockedDown": "Niedergeworfen",
         "addKnockedDownTooltip": "-2 allgemeine Malus hinzufügen (dauerhaft)",
-        "deleteHint": "Strg+Klick zum Entfernen"
+        "deleteHint": "Strg+Klick zum Entfernen",
+        "toggleHint": "Klick zum Umschalten"
       }
     }
   }

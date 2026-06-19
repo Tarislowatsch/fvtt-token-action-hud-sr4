@@ -27,6 +27,8 @@ export function collectArmor(actor) {
 // Helpers for registerDefaults
 // ---------------------------------------------------------------------------
 
+const ITEM_TABS = ['powers', 'implants'];
+
 /** Build a flat group entry. */
 const group = (id, nameKey, type = 'system') => ({
   id,
@@ -64,10 +66,11 @@ function createSystemManager(coreModule) {
         group('basics',           'sr4.hud.basics'),
         group('active-skills',    'sr4.hud.activeSkills'),
         group('knowledge-skills', 'sr4.hud.knowledgeSkills'),
-        group('weapons',          'sr4.hud.weapons'),
+        group('weapons',          'sr4.hud.weapons.tab'),
         group('spells',           'sr4.hud.spells.tab'),
         group('monitor',          'sr4.hud.monitor.tab'),
         group('actions',          'sr4.hud.actions.tab'),
+        ...ITEM_TABS.map(t => group(t, `sr4.hud.${t}.tab`)),
 
         // Basics sub-groups
         group('basics-improvise',        'sr4.hud.improvise'),
@@ -90,9 +93,16 @@ function createSystemManager(coreModule) {
         ),
 
         // List groups
-        group('weapons-list',  'sr4.hud.weapons'),
+        group('weapons-list',  'sr4.hud.weapons.tab'),
         group('monitor-list',  'sr4.hud.monitor.tab'),
         group('actions-list',  'sr4.hud.actions.tab'),
+        ...ITEM_TABS.flatMap(t => [
+          group(`${t}-list`,    `sr4.hud.${t}.tab`),
+          group(`${t}-actions`, `sr4.hud.${t}.actions`),
+          group(`${t}-effects`, `sr4.hud.${t}.effects`),
+        ]),
+        group('spells-actions',   'sr4.hud.spells.actions'),
+        group('spells-effects',   'sr4.hud.spells.effects'),
 
         // Effects tab
         group('effects',           'sr4.hud.effects.tab'),
@@ -127,14 +137,18 @@ function createSystemManager(coreModule) {
           ),
         },
         {
-          ...layoutGroup('weapons', 'weapons', 'sr4.hud.weapons'),
-          groups: [ layoutGroup('weapons_weapons-list', 'weapons-list', 'sr4.hud.weapons') ],
+          ...layoutGroup('weapons', 'weapons', 'sr4.hud.weapons.tab'),
+          groups: [ layoutGroup('weapons_weapons-list', 'weapons-list', 'sr4.hud.weapons.tab') ],
         },
         {
           ...layoutGroup('spells', 'spells', 'sr4.hud.spells.tab'),
-          groups: SPELL_CATEGORIES.map(cat =>
-            layoutGroup(`spells_spells-${cat.toLowerCase()}`, `spells-${cat.toLowerCase()}`, `sr4.spell.categories.${cat.toLowerCase()}`)
-          ),
+          groups: [
+            ...SPELL_CATEGORIES.map(cat =>
+              layoutGroup(`spells_spells-${cat.toLowerCase()}`, `spells-${cat.toLowerCase()}`, `sr4.spell.categories.${cat.toLowerCase()}`)
+            ),
+            layoutGroup('spells_spells-actions', 'spells-actions', 'sr4.hud.spells.actions'),
+            layoutGroup('spells_spells-effects', 'spells-effects', 'sr4.hud.spells.effects'),
+          ],
         },
         {
           ...layoutGroup('monitor', 'monitor', 'sr4.hud.monitor.tab'),
@@ -144,6 +158,14 @@ function createSystemManager(coreModule) {
           ...layoutGroup('actions', 'actions', 'sr4.hud.actions.tab'),
           groups: [ layoutGroup('actions_actions-list', 'actions-list', 'sr4.hud.actions.tab') ],
         },
+        ...ITEM_TABS.map(t => ({
+          ...layoutGroup(t, t, `sr4.hud.${t}.tab`),
+          groups: [
+            layoutGroup(`${t}_${t}-list`,    `${t}-list`,    `sr4.hud.${t}.tab`),
+            layoutGroup(`${t}_${t}-actions`, `${t}-actions`, `sr4.hud.${t}.actions`),
+            layoutGroup(`${t}_${t}-effects`, `${t}-effects`, `sr4.hud.${t}.effects`),
+          ],
+        })),
         {
           ...layoutGroup('effects', 'effects', 'sr4.hud.effects.tab'),
           groups: [

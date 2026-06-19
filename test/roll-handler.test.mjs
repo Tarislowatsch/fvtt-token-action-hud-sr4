@@ -131,3 +131,106 @@ describe('reload', () => {
     expect(game.tokenActionHud.update).toHaveBeenCalled();
   });
 });
+
+// -----------------------------------------------------------------------
+// Item effect toggle
+// -----------------------------------------------------------------------
+
+describe('itemEffectToggle', () => {
+  function makeActorWithItemEffect({ disabled = false } = {}) {
+    const effect = { id: 'e1', disabled, update: vi.fn().mockResolvedValue(undefined) };
+    const item = { id: 'i1', effects: { get: vi.fn(id => id === 'e1' ? effect : undefined) } };
+    const actor = makeActor();
+    actor.items.get = vi.fn(id => id === 'i1' ? item : undefined);
+    return { actor, effect };
+  }
+
+  it('toggles a disabled effect to enabled', async () => {
+    const { actor, effect } = makeActorWithItemEffect({ disabled: true });
+    await makeHandler(actor).handleActionClick({}, 'itemEffectToggle|i1:e1');
+    expect(effect.update).toHaveBeenCalledWith({ disabled: false });
+  });
+
+  it('toggles an enabled effect to disabled', async () => {
+    const { actor, effect } = makeActorWithItemEffect({ disabled: false });
+    await makeHandler(actor).handleActionClick({}, 'itemEffectToggle|i1:e1');
+    expect(effect.update).toHaveBeenCalledWith({ disabled: true });
+  });
+
+  it('does nothing when item is not found', async () => {
+    const actor = makeActor();
+    actor.items.get = vi.fn(() => undefined);
+    await expect(makeHandler(actor).handleActionClick({}, 'itemEffectToggle|missing:e1')).resolves.toBeUndefined();
+  });
+
+  it('does nothing when effect is not found on item', async () => {
+    const item = { id: 'i1', effects: { get: vi.fn(() => undefined) } };
+    const actor = makeActor();
+    actor.items.get = vi.fn(() => item);
+    await expect(makeHandler(actor).handleActionClick({}, 'itemEffectToggle|i1:missing')).resolves.toBeUndefined();
+  });
+
+  it('updates the HUD after toggling', async () => {
+    const { actor } = makeActorWithItemEffect();
+    await makeHandler(actor).handleActionClick({}, 'itemEffectToggle|i1:e1');
+    expect(game.tokenActionHud.update).toHaveBeenCalled();
+  });
+});
+
+// -----------------------------------------------------------------------
+// Equip toggle
+// -----------------------------------------------------------------------
+
+describe('equip', () => {
+  function makeActorWithItem({ equipped = false } = {}) {
+    const item = { id: 'i1', system: { equipped }, update: vi.fn().mockResolvedValue(undefined) };
+    const actor = makeActor();
+    actor.items.get = vi.fn(id => id === 'i1' ? item : undefined);
+    return { actor, item };
+  }
+
+  it('toggles an unequipped item to equipped', async () => {
+    const { actor, item } = makeActorWithItem({ equipped: false });
+    await makeHandler(actor).handleActionClick({}, 'equip|i1');
+    expect(item.update).toHaveBeenCalledWith({ 'system.equipped': true });
+  });
+
+  it('toggles an equipped item to unequipped', async () => {
+    const { actor, item } = makeActorWithItem({ equipped: true });
+    await makeHandler(actor).handleActionClick({}, 'equip|i1');
+    expect(item.update).toHaveBeenCalledWith({ 'system.equipped': false });
+  });
+
+  it('does nothing when the item is not found', async () => {
+    const actor = makeActor();
+    actor.items.get = vi.fn(() => undefined);
+    await expect(makeHandler(actor).handleActionClick({}, 'equip|missing')).resolves.toBeUndefined();
+  });
+
+  it('updates the HUD after toggling', async () => {
+    const { actor } = makeActorWithItem();
+    await makeHandler(actor).handleActionClick({}, 'equip|i1');
+    expect(game.tokenActionHud.update).toHaveBeenCalled();
+  });
+});
+
+// -----------------------------------------------------------------------
+// Item sheet
+// -----------------------------------------------------------------------
+
+describe('itemSheet', () => {
+  it('opens the item sheet via render', async () => {
+    const render = vi.fn();
+    const item = { id: 'i1', sheet: { render } };
+    const actor = makeActor();
+    actor.items.get = vi.fn(() => item);
+    await makeHandler(actor).handleActionClick({}, 'itemSheet|i1');
+    expect(render).toHaveBeenCalledWith(true);
+  });
+
+  it('does nothing when item is not found', async () => {
+    const actor = makeActor();
+    actor.items.get = vi.fn(() => undefined);
+    await expect(makeHandler(actor).handleActionClick({}, 'itemSheet|missing')).resolves.toBeUndefined();
+  });
+});

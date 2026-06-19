@@ -26,9 +26,12 @@ export function createRollHandler(coreModule) {
         case 'freeRoll':       return this.#dialog.handleFreeRoll();
         case 'soak':           return this.#rollSoak(actor, id);
         case 'autosoft':       return this.#rollAutosoft(actor, id);
-        case 'effectToggle':   return this.#toggleEffect(actor, id);
-        case 'effectTemplate': return this.#applyTemplate(actor, id);
-        case 'reload':         return this.#reloadWeapon(actor, id);
+        case 'effectToggle':      return this.#toggleEffect(actor, id);
+        case 'effectTemplate':    return this.#applyTemplate(actor, id);
+        case 'itemEffectToggle':  return this.#toggleItemEffect(actor, id);
+        case 'itemSheet':         return this.#openItemSheet(actor, id);
+        case 'equip':             return this.#toggleEquip(actor, id);
+        case 'reload':            return this.#reloadWeapon(actor, id);
       }
     }
 
@@ -201,6 +204,26 @@ export function createRollHandler(coreModule) {
 
     async #applyTemplate(actor, id) {
       await actor.applyEffectTemplate(id);
+      this.#updateHud();
+    }
+
+    async #toggleItemEffect(actor, compoundId) {
+      const [itemId, effectId] = compoundId.split(':');
+      const item = actor.items.get(itemId);
+      const effect = item?.effects.get(effectId);
+      if (!effect) return;
+      await effect.update({ disabled: !effect.disabled });
+      this.#updateHud();
+    }
+
+    async #openItemSheet(actor, id) {
+      actor.items.get(id)?.sheet?.render(true);
+    }
+
+    async #toggleEquip(actor, itemId) {
+      const item = actor.items.get(itemId);
+      if (!item) return;
+      await item.update({ 'system.equipped': !item.system.equipped });
       this.#updateHud();
     }
 

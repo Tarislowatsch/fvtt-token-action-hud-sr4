@@ -234,8 +234,9 @@ describe('weapons', () => {
     const handler = await build(actor);
 
     const actions = actionsFor(handler, 'weapons-list');
-    expect(actions).toHaveLength(2);
-    expect(actions.map(a => a.id)).toEqual(['w1', 'w2']);
+    const weapons = actions.filter(a => !a.id.startsWith('equip-') && !a.id.startsWith('reload-'));
+    expect(weapons).toHaveLength(2);
+    expect(weapons.map(a => a.id)).toEqual(['w1', 'w2']);
   });
 
   it('appends a reload action for a ranged weapon with maxAmmo > 0', async () => {
@@ -291,7 +292,198 @@ describe('weapons', () => {
     const handler = await build(actor);
 
     const actions = actionsFor(handler, 'weapons-list');
+    expect(actions.find(a => a.id.startsWith('reload-'))).toBeUndefined();
+    expect(actions.find(a => a.id === 'w1')).toBeDefined();
+  });
+
+  it('prefers effectiveDamage/effectiveAP over base values in the tooltip', async () => {
+    const items = [
+      { id: 'w1', type: 'Melee Weapon', name: 'Katana', img: null,
+        system: { damage: 6, ap: -1, effectiveDamage: 8, effectiveAP: -3 } },
+    ];
+    const actor = makeActor({ items });
+    const handler = await build(actor);
+
+    const weapon = actionsFor(handler, 'weapons-list').find(a => a.id === 'w1');
+    expect(weapon.tooltip).toBe('Katana · DMG: 8 AP: -3');
+  });
+
+  it('appends an equip toggle for a melee weapon', async () => {
+    const items = [
+      { id: 'w1', type: 'Melee Weapon', name: 'Knife', img: null,
+        system: { damage: 4, ap: 0, equipped: false } },
+    ];
+    const actor = makeActor({ items });
+    const handler = await build(actor);
+
+    const equip = actionsFor(handler, 'weapons-list').find(a => a.id === 'equip-w1');
+    expect(equip).toBeDefined();
+    expect(equip.encodedValue).toBe('equip|w1');
+    expect(equip.cssClass).toBe('');
+    expect(equip.name).toBe('○ Knife');
+  });
+
+  it('marks an equipped melee weapon with the active css class', async () => {
+    const items = [
+      { id: 'w1', type: 'Melee Weapon', name: 'Knife', img: null,
+        system: { damage: 4, ap: 0, equipped: true } },
+    ];
+    const actor = makeActor({ items });
+    const handler = await build(actor);
+
+    const equip = actionsFor(handler, 'weapons-list').find(a => a.id === 'equip-w1');
+    expect(equip.cssClass).toBe('active');
+    expect(equip.name).toBe('✦ Knife');
+    expect(equip.img).toBe('icons/svg/sword.svg');
+  });
+
+  it('does not add an equip toggle for a ranged weapon', async () => {
+    const items = [
+      { id: 'w1', type: 'Ranged Weapon', name: 'Pistol', img: null,
+        system: { damage: 8, ap: -4, maxAmmo: 0, equipped: false } },
+    ];
+    const actor = makeActor({ items });
+    const handler = await build(actor);
+
+    const actions = actionsFor(handler, 'weapons-list');
+    expect(actions.find(a => a.id === 'equip-w1')).toBeUndefined();
+  });
+
+  it('appends an equip toggle for each armor item', async () => {
+    const items = [
+      { id: 'a1', type: 'Armor', name: 'Jacket', img: null, system: { equipped: true } },
+      { id: 'a2', type: 'Armor', name: 'Vest',   img: null, system: { equipped: false } },
+    ];
+    const actor = makeActor({ items });
+    const handler = await build(actor);
+
+    const actions = actionsFor(handler, 'weapons-list');
+    const equipped = actions.find(a => a.id === 'equip-a1');
+    const unequipped = actions.find(a => a.id === 'equip-a2');
+
+    expect(equipped.encodedValue).toBe('equip|a1');
+    expect(equipped.cssClass).toBe('active');
+    expect(equipped.img).toBe('icons/svg/shield.svg');
+    expect(unequipped.cssClass).toBe('');
+  });
+
+  it('does not call addActions for armor when no armor items exist', async () => {
+    const items = [
+      { id: 'w1', type: 'Melee Weapon', name: 'Knife', img: null, system: { damage: 4, ap: 0, equipped: false } },
+    ];
+    const actor = makeActor({ items });
+    const handler = await build(actor);
+
+    // weapons-list is added exactly once (the weapons call); no extra armor call
+    const weaponListCalls = handler.addActions.mock.calls.filter(([, g]) => g.id === 'weapons-list');
+    expect(weaponListCalls).toHaveLength(1);
+  });
+});
+
+// -----------------------------------------------------------------------
+// Item Actions & Effects (Powers / Implants)
+// -----------------------------------------------------------------------
+
+describe('buildItemActionsEffects', () => {
+  function makePower(overrides = {}) {
+    return {
+      id: 'p1', type: 'Power', name: 'Astral Perception', img: null,
+      system: { description: 'See the astral plane' },
+      effects: { contents: [] },
+      ...overrides,
+    };
+  }
+
+  it('places items into the prefix-list group', async () => {
+    const actor = makeActor({ items: [makePower()] });
+    const handler = await build(actor);
+
+    const actions = actionsFor(handler, 'powers-list');
     expect(actions).toHaveLength(1);
-    expect(actions[0].id).toBe('w1');
+    expect(actions[0].id).toBe('p1');
+    expect(actions[0].encodedValue).toBe('itemSheet|p1');
+  });
+
+  it('collects linked actions into prefix-actions group', async () => {
+    const items = [
+      makePower({ id: 'p1', name: 'Innate Spell' }),
+      { id: 'a1', type: 'Action', name: 'Cast', img: null, system: { linkedItemId: 'p1', actionType: 'complex' } },
+    ];
+    const actor = makeActor({ items });
+    const handler = await build(actor);
+
+    const actions = actionsFor(handler, 'powers-actions');
+    expect(actions).toHaveLength(1);
+    expect(actions[0].name).toBe('Innate Spell: Cast');
+    expect(actions[0].encodedValue).toBe('action|a1');
+  });
+
+  it('collects item effects into prefix-effects group', async () => {
+    const items = [
+      makePower({
+        id: 'p1', name: 'Guard',
+        effects: { contents: [{ id: 'e1', name: 'Shield', img: null, disabled: true }] },
+      }),
+    ];
+    const actor = makeActor({ items });
+    const handler = await build(actor);
+
+    const actions = actionsFor(handler, 'powers-effects');
+    expect(actions).toHaveLength(1);
+    expect(actions[0].id).toBe('p1-e1');
+    expect(actions[0].encodedValue).toBe('itemEffectToggle|p1:e1');
+    expect(actions[0].cssClass).toBe('');
+  });
+
+  it('marks enabled effects with active css class', async () => {
+    const items = [
+      makePower({
+        effects: { contents: [{ id: 'e1', name: 'Aura', img: null, disabled: false }] },
+      }),
+    ];
+    const actor = makeActor({ items });
+    const handler = await build(actor);
+
+    const actions = actionsFor(handler, 'powers-effects');
+    expect(actions[0].cssClass).toBe('active');
+  });
+
+  it('skips all groups when no items match the type', async () => {
+    const actor = makeActor({ items: [] });
+    const handler = await build(actor);
+
+    const calledGroups = handler.addActions.mock.calls.map(([, g]) => g.id);
+    expect(calledGroups).not.toContain('powers-list');
+    expect(calledGroups).not.toContain('implants-list');
+  });
+
+  it('omits actions and effects groups when none exist', async () => {
+    const items = [makePower()];
+    const actor = makeActor({ items });
+    const handler = await build(actor);
+
+    const calledGroups = handler.addActions.mock.calls.map(([, g]) => g.id);
+    expect(calledGroups).toContain('powers-list');
+    expect(calledGroups).not.toContain('powers-actions');
+    expect(calledGroups).not.toContain('powers-effects');
+  });
+});
+
+// -----------------------------------------------------------------------
+// Actions filter (linked actions excluded)
+// -----------------------------------------------------------------------
+
+describe('actions', () => {
+  it('excludes actions with a linkedItemId from the actions tab', async () => {
+    const items = [
+      { id: 'a1', type: 'Action', name: 'Sprint', img: null, system: { actionType: 'simple' } },
+      { id: 'a2', type: 'Action', name: 'Linked Cast', img: null, system: { actionType: 'complex', linkedItemId: 'sp1' } },
+    ];
+    const actor = makeActor({ items });
+    const handler = await build(actor);
+
+    const actions = actionsFor(handler, 'actions-list');
+    expect(actions).toHaveLength(1);
+    expect(actions[0].id).toBe('a1');
   });
 });

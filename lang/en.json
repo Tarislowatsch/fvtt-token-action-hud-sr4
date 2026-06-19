@@ -61,9 +61,24 @@
         "bodyBallistic": "BOD + Ballistic Armor"
       },
       "spells": {
-        "tab": "Spells"
+        "tab": "Spells",
+        "actions": "Spell Actions",
+        "effects": "Spell Effects"
       },
-      "weapons": "Weapons",
+      "weapons": {
+        "tab": "Weapons",
+        "equip": "Toggle equip"
+      },
+      "powers": {
+        "tab": "Powers",
+        "actions": "Power Actions",
+        "effects": "Power Effects"
+      },
+      "implants": {
+        "tab": "Implants",
+        "actions": "Implant Actions",
+        "effects": "Implant Effects"
+      },
       "effects": {
         "tab": "Effects",
         "templates": "Quick Effects",
@@ -78,7 +93,8 @@
         "addBlindFlareCompTooltip": "Apply -2 attack penalty with flare compensation (1 turn)",
         "addKnockedDown": "Knocked Down",
         "addKnockedDownTooltip": "Apply -2 general penalty (persistent)",
-        "deleteHint": "Ctrl+Click to remove"
+        "deleteHint": "Ctrl+Click to remove",
+        "toggleHint": "Click to toggle"
       }
     }
   }
