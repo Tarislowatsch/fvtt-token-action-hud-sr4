@@ -6,7 +6,7 @@ import { loc, collectArmor } from './system-manager.js';
 
 export function createRollHandler(coreModule) {
   return class SR4RollHandler extends coreModule.api.RollHandler {
-    #dialog = game.sr4.dialogUtility;
+    get #dialog() { return game.sr4.dialogUtility; }
 
     async handleActionClick(event, encodedValue) {
       const [type, id] = encodedValue.split('|');

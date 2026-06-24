@@ -10,6 +10,14 @@ import {
   ATTRIBUTE_KEYS,
 } from './constants.js';
 
+const EFFECT_TEMPLATES = [
+  { key: 'sustain',        icon: 'aura.svg' },
+  { key: 'disoriented',    icon: 'stoned.svg' },
+  { key: 'blind',          icon: 'blind.svg' },
+  { key: 'blindFlareComp', icon: 'blind.svg' },
+  { key: 'knockedDown',    icon: 'falling.svg' },
+];
+
 export function createActionHandler(coreModule) {
   return class SR4ActionHandler extends coreModule.api.ActionHandler {
 
@@ -41,6 +49,31 @@ export function createActionHandler(coreModule) {
     }
 
     // -----------------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------------
+
+    #addToGroup(actions, parent, groupId) {
+      this.addActions(actions, { id: groupId, nestId: `${parent}_${groupId}`, type: 'system' });
+    }
+
+    #equipAction(item, equippedIcon) {
+      return {
+        id:           `equip-${item.id}`,
+        name:         `${item.system.equipped ? '✦' : '○'} ${item.name}`,
+        img:          item.system.equipped ? equippedIcon : 'icons/svg/item-bag.svg',
+        encodedValue: `equip|${item.id}`,
+        cssClass:     item.system.equipped ? 'active' : '',
+        tooltip:      `${loc('sr4.hud.weapons.equip')}: ${item.name}`,
+      };
+    }
+
+    #addLinkedActionsAndEffects(actor, items, groupPrefix) {
+      const { linkedActions, effectActions } = this.#collectLinkedActionsAndEffects(actor, items);
+      if (linkedActions.length) this.#addToGroup(linkedActions, groupPrefix, `${groupPrefix}-actions`);
+      if (effectActions.length) this.#addToGroup(effectActions, groupPrefix, `${groupPrefix}-effects`);
+    }
+
+    // -----------------------------------------------------------------------
     // Vehicle
     // -----------------------------------------------------------------------
 
@@ -48,7 +81,6 @@ export function createActionHandler(coreModule) {
       const sys = actor.system;
       const pilot = sys.pilot ?? 0;
 
-      // Vehicle stats as improvised rolls in the basics-improvise group
       const statActions = [
         { id: 'veh-body',     name: `${loc('sr4.vehicle.body')} (${sys.body ?? 0})`,       encodedValue: 'freeRoll|free-roll', img: 'icons/svg/shield.svg' },
         { id: 'veh-pilot',    name: `${loc('sr4.vehicle.pilot')} (${sys.pilot ?? 0})`,      encodedValue: 'freeRoll|free-roll', img: 'icons/svg/d20.svg' },
@@ -56,9 +88,8 @@ export function createActionHandler(coreModule) {
         { id: 'veh-sensor',   name: `${loc('sr4.vehicle.sensor')} (${sys.sensor ?? 0})`,    encodedValue: 'freeRoll|free-roll', img: 'icons/svg/d20.svg' },
         { id: 'veh-handling', name: `${loc('sr4.vehicle.handling')} (${sys.handling ?? 0})`,encodedValue: 'freeRoll|free-roll', img: 'icons/svg/d20.svg' },
       ];
-      this.addActions(statActions, { id: 'basics-improvise', nestId: 'basics_basics-improvise', type: 'system' });
+      this.#addToGroup(statActions, 'basics', 'basics-improvise');
 
-      // Autosofts as rollable actions — pilot + rating dice
       const autosoftActions = actor.items
         .filter(i => i.type === 'Autosoft')
         .map(a => ({
@@ -69,7 +100,7 @@ export function createActionHandler(coreModule) {
           tooltip:      `${loc('sr4.vehicle.autonomous')}: Pilot ${pilot} + Rating ${a.system.rating ?? 0}`,
         }));
       if (autosoftActions.length) {
-        this.addActions(autosoftActions, { id: 'basics-free-roll', nestId: 'basics_basics-free-roll', type: 'system' });
+        this.#addToGroup(autosoftActions, 'basics', 'basics-free-roll');
       }
 
       this.#buildWeapons(actor);
@@ -80,12 +111,12 @@ export function createActionHandler(coreModule) {
     #buildVehicleMonitor(actor) {
       const cm = actor.system?.conditionMonitor;
       if (!cm?.physical) return;
-      this.addActions([{
+      this.#addToGroup([{
         id:           'physical',
         name:         `${loc('sr4.hud.monitor.physical')}: ${cm.physical.value}/${cm.physical.max}`,
         img:          'icons/svg/regen.svg',
         encodedValue: 'monitor-deal|physical',
-      }], { id: 'monitor-list', nestId: 'monitor_monitor-list', type: 'system' });
+      }], 'monitor', 'monitor-list');
     }
 
     // -----------------------------------------------------------------------
@@ -114,11 +145,8 @@ export function createActionHandler(coreModule) {
         tooltip:      item.system.description ?? item.name,
       }));
 
-      const { linkedActions, effectActions } = this.#collectLinkedActionsAndEffects(actor, items);
-
-      this.addActions(itemActions, { id: `${groupPrefix}-list`, nestId: `${groupPrefix}_${groupPrefix}-list`, type: 'system' });
-      if (linkedActions.length) this.addActions(linkedActions, { id: `${groupPrefix}-actions`, nestId: `${groupPrefix}_${groupPrefix}-actions`, type: 'system' });
-      if (effectActions.length) this.addActions(effectActions, { id: `${groupPrefix}-effects`, nestId: `${groupPrefix}_${groupPrefix}-effects`, type: 'system' });
+      this.#addToGroup(itemActions, groupPrefix, `${groupPrefix}-list`);
+      this.#addLinkedActionsAndEffects(actor, items, groupPrefix);
     }
 
     #collectLinkedActionsAndEffects(actor, items) {
@@ -182,19 +210,19 @@ export function createActionHandler(coreModule) {
           `${actor.getAttribute(attr)} - 1`,
       }));
 
-      this.addActions(actions, { id: 'basics-improvise', nestId: 'basics_basics-improvise', type: 'system' });
+      this.#addToGroup(actions, 'basics', 'basics-improvise');
     }
 
     #buildEdgeRolls(actor) {
       const edge = actor.getAttribute('EDGE');
 
-      this.addActions([{
+      this.#addToGroup([{
         id:           'edge-roll-double',
         name:         `${loc('sr4.hud.edge.double')} (${edge * 2})`,
         img:          'icons/svg/explosion.svg',
         encodedValue: 'edgeRoll|double',
         tooltip:      loc('sr4.hud.edge.doubleTooltip'),
-      }], { id: 'basics-edge-rolls', nestId: 'basics_basics-edge-rolls', type: 'system' });
+      }], 'basics', 'basics-edge-rolls');
     }
 
     #buildSoak(actor) {
@@ -203,33 +231,33 @@ export function createActionHandler(coreModule) {
 
       const { ballistic, impact } = collectArmor(actor);
 
-      this.addActions([
+      this.#addToGroup([
         { id: 'soak-willpower',      name: `${loc('sr4.hud.soak.willpower')}    (${will})`,           tooltip: `${loc('sr4.hud.soak.willpower')}    · ${will} ${loc('sr4.skills.dice')}`,                                  encodedValue: 'soak|willpower' },
         { id: 'soak-body',           name: `${loc('sr4.hud.soak.body')}         (${body})`,           tooltip: `${loc('sr4.hud.soak.body')}         · ${body} ${loc('sr4.skills.dice')}`,                                  encodedValue: 'soak|body' },
         { id: 'soak-body-impact',    name: `${loc('sr4.hud.soak.bodyImpact')}   (${body + impact})`,  tooltip: `${loc('sr4.hud.soak.bodyImpact')}   · BODY ${body} + Impact ${impact} = ${body + impact}`,                  encodedValue: 'soak|body-impact' },
         { id: 'soak-body-ballistic', name: `${loc('sr4.hud.soak.bodyBallistic')}(${body + ballistic})`,tooltip: `${loc('sr4.hud.soak.bodyBallistic')} · BODY ${body} + Ballistic ${ballistic} = ${body + ballistic}`,       encodedValue: 'soak|body-ballistic' },
       ].map(a => ({ ...a, img: 'icons/svg/shield.svg' })),
-      { id: 'basics-soak', nestId: 'basics_basics-soak', type: 'system' });
+      'basics', 'basics-soak');
     }
 
     #buildFreeRoll() {
-      this.addActions([{
+      this.#addToGroup([{
         id:           'free-roll',
         name:         loc('sr4.hud.freeRoll'),
         img:          'icons/svg/d20-grey.svg',
         encodedValue: 'freeRoll|free-roll',
-      }], { id: 'basics-free-roll', nestId: 'basics_basics-free-roll', type: 'system' });
+      }], 'basics', 'basics-free-roll');
     }
 
     #buildEdge(actor) {
       const current = actor.getAttribute('CURRENTEDGE');
       const max     = actor.getAttribute('EDGE');
 
-      this.addActions([
+      this.#addToGroup([
         { id: 'edge-add',   name: `${loc('sr4.hud.edge.add')} (${current}/${max})`, img: 'icons/svg/upgrade.svg',   encodedValue: 'edge|add',   tooltip: loc('sr4.hud.edge.addTooltip')   },
         { id: 'edge-spend', name: loc('sr4.hud.edge.spend'),                        img: 'icons/svg/downgrade.svg', encodedValue: 'edge|spend', tooltip: loc('sr4.hud.edge.spendTooltip') },
         { id: 'edge-reset', name: loc('sr4.hud.edge.reset'),                        img: 'icons/svg/refresh.svg',   encodedValue: 'edge|reset', tooltip: loc('sr4.hud.edge.resetTooltip') },
-      ], { id: 'basics-edge-management', nestId: 'basics_basics-edge-management', type: 'system' });
+      ], 'basics', 'basics-edge-management');
     }
 
     // -----------------------------------------------------------------------
@@ -256,11 +284,7 @@ export function createActionHandler(coreModule) {
 
         if (!actions.length) continue;
 
-        this.addActions(actions, {
-          id:     `${prefix}-${category}`,
-          nestId: `${parentId}_${prefix}-${category}`,
-          type:   'system',
-        });
+        this.#addToGroup(actions, parentId, `${prefix}-${category}`);
       }
     }
 
@@ -308,14 +332,7 @@ export function createActionHandler(coreModule) {
         });
 
         if (w.type === 'Melee Weapon') {
-          actions.push({
-            id:           `equip-${w.id}`,
-            name:         `${w.system.equipped ? '✦' : '○'} ${w.name}`,
-            img:          w.system.equipped ? 'icons/svg/sword.svg' : 'icons/svg/item-bag.svg',
-            encodedValue: `equip|${w.id}`,
-            cssClass:     w.system.equipped ? 'active' : '',
-            tooltip:      `${loc('sr4.hud.weapons.equip')}: ${w.name}`,
-          });
+          actions.push(this.#equipAction(w, 'icons/svg/sword.svg'));
         }
 
         if (w.type === 'Ranged Weapon' && w.system.maxAmmo > 0) {
@@ -330,17 +347,10 @@ export function createActionHandler(coreModule) {
       }
 
       for (const a of actor.items.filter(i => i.type === 'Armor')) {
-        actions.push({
-          id:           `equip-${a.id}`,
-          name:         `${a.system.equipped ? '✦' : '○'} ${a.name}`,
-          img:          a.system.equipped ? 'icons/svg/shield.svg' : 'icons/svg/item-bag.svg',
-          encodedValue: `equip|${a.id}`,
-          cssClass:     a.system.equipped ? 'active' : '',
-          tooltip:      `${loc('sr4.hud.weapons.equip')}: ${a.name}`,
-        });
+        actions.push(this.#equipAction(a, 'icons/svg/shield.svg'));
       }
 
-      this.addActions(actions, { id: 'weapons-list', nestId: 'weapons_weapons-list', type: 'system' });
+      this.#addToGroup(actions, 'weapons', 'weapons-list');
     }
 
     // -----------------------------------------------------------------------
@@ -365,17 +375,10 @@ export function createActionHandler(coreModule) {
 
         if (!actions.length) continue;
 
-        this.addActions(actions, {
-          id:     `spells-${category.toLowerCase()}`,
-          nestId: `spells_spells-${category.toLowerCase()}`,
-          type:   'system',
-        });
+        this.#addToGroup(actions, 'spells', `spells-${category.toLowerCase()}`);
       }
 
-      const { linkedActions, effectActions } = this.#collectLinkedActionsAndEffects(actor, spells);
-
-      if (linkedActions.length) this.addActions(linkedActions, { id: 'spells-actions', nestId: 'spells_spells-actions', type: 'system' });
-      if (effectActions.length) this.addActions(effectActions, { id: 'spells-effects', nestId: 'spells_spells-effects', type: 'system' });
+      this.#addLinkedActionsAndEffects(actor, spells, 'spells');
     }
 
     #spellTooltip(spell) {
@@ -408,7 +411,7 @@ export function createActionHandler(coreModule) {
           encodedValue: `monitor-deal|${track}`,
         }));
 
-      this.addActions(actions, { id: 'monitor-list', nestId: 'monitor_monitor-list', type: 'system' });
+      this.#addToGroup(actions, 'monitor', 'monitor-list');
     }
 
     #buildActions(actor) {
@@ -423,7 +426,7 @@ export function createActionHandler(coreModule) {
         }));
 
       if (!actions.length) return;
-      this.addActions(actions, { id: 'actions-list', nestId: 'actions_actions-list', type: 'system' });
+      this.#addToGroup(actions, 'actions', 'actions-list');
     }
 
     // -----------------------------------------------------------------------
@@ -431,46 +434,18 @@ export function createActionHandler(coreModule) {
     // -----------------------------------------------------------------------
 
     #buildEffects(actor) {
-      // Premade templates (always shown, additive — each click creates a new instance)
-      this.addActions([
-        {
-          id:           'effect-sustain-add',
-          name:         loc('sr4.hud.effects.addSustain'),
-          img:          'icons/svg/aura.svg',
-          encodedValue: 'effectTemplate|sustain',
-          tooltip:      loc('sr4.hud.effects.addSustainTooltip'),
-        },
-        {
-          id:           'effect-disoriented-add',
-          name:         loc('sr4.hud.effects.addDisoriented'),
-          img:          'icons/svg/stoned.svg',
-          encodedValue: 'effectTemplate|disoriented',
-          tooltip:      loc('sr4.hud.effects.addDisorientedTooltip'),
-        },
-        {
-          id:           'effect-blind-add',
-          name:         loc('sr4.hud.effects.addBlind'),
-          img:          'icons/svg/blind.svg',
-          encodedValue: 'effectTemplate|blind',
-          tooltip:      loc('sr4.hud.effects.addBlindTooltip'),
-        },
-        {
-          id:           'effect-blind-flare-comp-add',
-          name:         loc('sr4.hud.effects.addBlindFlareComp'),
-          img:          'icons/svg/blind.svg',
-          encodedValue: 'effectTemplate|blindFlareComp',
-          tooltip:      loc('sr4.hud.effects.addBlindFlareCompTooltip'),
-        },
-        {
-          id:           'effect-knocked-down-add',
-          name:         loc('sr4.hud.effects.addKnockedDown'),
-          img:          'icons/svg/falling.svg',
-          encodedValue: 'effectTemplate|knockedDown',
-          tooltip:      loc('sr4.hud.effects.addKnockedDownTooltip'),
-        },
-      ], { id: 'effects-templates', nestId: 'effects_effects-templates', type: 'system' });
+      const templateActions = EFFECT_TEMPLATES.map(({ key, icon }) => {
+        const locKey = `add${key[0].toUpperCase()}${key.slice(1)}`;
+        return {
+          id:           `effect-${key}-add`,
+          name:         loc(`sr4.hud.effects.${locKey}`),
+          img:          `icons/svg/${icon}`,
+          encodedValue: `effectTemplate|${key}`,
+          tooltip:      loc(`sr4.hud.effects.${locKey}Tooltip`),
+        };
+      });
+      this.#addToGroup(templateActions, 'effects', 'effects-templates');
 
-      // Active effects on the actor — each is independently toggleable
       const effectActions = actor.effects.contents.map(effect => ({
         id:           effect.id,
         name:         effect.name,
@@ -481,7 +456,7 @@ export function createActionHandler(coreModule) {
       }));
 
       if (!effectActions.length) return;
-      this.addActions(effectActions, { id: 'effects-active', nestId: 'effects_effects-active', type: 'system' });
+      this.#addToGroup(effectActions, 'effects', 'effects-active');
     }
 
     #effectTooltip(effect) {
