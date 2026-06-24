@@ -252,7 +252,7 @@ describe('weapons', () => {
     const reload = actions.find(a => a.id === 'reload-w1');
     expect(reload).toBeDefined();
     expect(reload.encodedValue).toBe('reload|w1');
-    expect(reload.img).toBe('icons/svg/refresh.svg');
+    expect(reload.img).toBe('icons/svg/regen.svg');
     expect(reload.name).toBe('↺ Pistol (7/15)');
     expect(reload.tooltip).toBe('sr4.weapon.reload: 7/15');
   });

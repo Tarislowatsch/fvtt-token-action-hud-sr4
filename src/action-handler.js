@@ -256,7 +256,7 @@ export function createActionHandler(coreModule) {
       this.#addToGroup([
         { id: 'edge-add',   name: `${loc('sr4.hud.edge.add')} (${current}/${max})`, img: 'icons/svg/upgrade.svg',   encodedValue: 'edge|add',   tooltip: loc('sr4.hud.edge.addTooltip')   },
         { id: 'edge-spend', name: loc('sr4.hud.edge.spend'),                        img: 'icons/svg/downgrade.svg', encodedValue: 'edge|spend', tooltip: loc('sr4.hud.edge.spendTooltip') },
-        { id: 'edge-reset', name: loc('sr4.hud.edge.reset'),                        img: 'icons/svg/refresh.svg',   encodedValue: 'edge|reset', tooltip: loc('sr4.hud.edge.resetTooltip') },
+        { id: 'edge-reset', name: loc('sr4.hud.edge.reset'),                        img: 'icons/svg/regen.svg',     encodedValue: 'edge|reset', tooltip: loc('sr4.hud.edge.resetTooltip') },
       ], 'basics', 'basics-edge-management');
     }
 
@@ -339,7 +339,7 @@ export function createActionHandler(coreModule) {
           actions.push({
             id:           `reload-${w.id}`,
             name:         `↺ ${w.name} (${w.system.currentAmmo}/${w.system.maxAmmo})`,
-            img:          'icons/svg/refresh.svg',
+            img:          'icons/svg/regen.svg',
             encodedValue: `reload|${w.id}`,
             tooltip:      `${loc('sr4.weapon.reload')}: ${w.system.currentAmmo}/${w.system.maxAmmo}`,
           });
