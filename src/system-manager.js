@@ -14,12 +14,10 @@ import { createRollHandler }   from './roll-handler.js';
 // Shared i18n helper — imported by the other modules
 export const loc = (key) => game.i18n.localize(key);
 
-// Aggregates ballistic and impact armor totals across all Armor items
 export function collectArmor(actor) {
-  const armorItems = actor.items.filter(i => i.type === 'Armor');
   return {
-    ballistic: armorItems.reduce((sum, i) => sum + (i.system.ballisticarmor ?? 0), 0),
-    impact:    armorItems.reduce((sum, i) => sum + (i.system.impactarmor    ?? 0), 0),
+    ballistic: actor.system.armor?.ballistic ?? 0,
+    impact:    actor.system.armor?.impact    ?? 0,
   };
 }
 

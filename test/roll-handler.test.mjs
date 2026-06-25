@@ -9,13 +9,16 @@ const coreModule = {
 
 const SR4RollHandler = createRollHandler(coreModule);
 
-function makeActor({ currentEdge = 3, maxEdge = 5, body = 4, armorItems = [] } = {}) {
+function makeActor({ currentEdge = 3, maxEdge = 5, body = 4, armor = {} } = {}) {
   const attrs = { CURRENTEDGE: currentEdge, EDGE: maxEdge, BODY: body };
   return {
     getAttribute: vi.fn(key => attrs[key] ?? 0),
     update: vi.fn().mockResolvedValue(undefined),
-    items: { filter: vi.fn(fn => armorItems.filter(fn)) },
-    system: { conditionMonitor: {} },
+    items: {},
+    system: {
+      conditionMonitor: {},
+      armor: { ballistic: armor.ballistic ?? 0, impact: armor.impact ?? 0 },
+    },
   };
 }
 
@@ -72,25 +75,18 @@ describe('edge|reset', () => {
 // -----------------------------------------------------------------------
 
 describe('soak|body-ballistic', () => {
-  it('sums BODY + ballistic armor across all equipped armor items', async () => {
-    const armorItems = [
-      { type: 'Armor', system: { ballisticarmor: 3, impactarmor: 1 } },
-      { type: 'Armor', system: { ballisticarmor: 2, impactarmor: 4 } },
-    ];
-    const actor = makeActor({ body: 4, armorItems });
+  it('uses pre-computed actor armor totals', async () => {
+    const actor = makeActor({ body: 4, armor: { ballistic: 5, impact: 3 } });
     await makeHandler(actor).handleActionClick({}, 'soak|body-ballistic');
     expect(game.sr4.dialogUtility.openActionDialog)
-      .toHaveBeenCalledWith(actor, 'sr4.hud.soak.bodyBallistic', 9); // 4+3+2
+      .toHaveBeenCalledWith(actor, 'sr4.hud.soak.bodyBallistic', 9); // 4+5
   });
 
-  it('treats missing ballisticarmor as 0', async () => {
-    const armorItems = [
-      { type: 'Armor', system: { impactarmor: 3 } }, // no ballisticarmor property
-    ];
-    const actor = makeActor({ body: 4, armorItems });
+  it('defaults to 0 when no armor is present', async () => {
+    const actor = makeActor({ body: 4 });
     await makeHandler(actor).handleActionClick({}, 'soak|body-ballistic');
     expect(game.sr4.dialogUtility.openActionDialog)
-      .toHaveBeenCalledWith(actor, 'sr4.hud.soak.bodyBallistic', 4); // BODY only
+      .toHaveBeenCalledWith(actor, 'sr4.hud.soak.bodyBallistic', 4);
   });
 });
 
