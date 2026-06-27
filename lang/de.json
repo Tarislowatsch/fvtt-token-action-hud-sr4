@@ -60,10 +60,26 @@
         "bodyImpact": "KON + Stoßpanzerung",
         "bodyBallistic": "KON + Ballistische Panzerung"
       },
+      "magic": {
+        "tab": "Magie",
+        "summonSpirit": "Geist beschwören",
+        "summonSpiritTooltip": "Beschwörungsdialog öffnen",
+        "summoning": "Beschwörung"
+      },
       "spells": {
         "tab": "Zauber",
         "actions": "Zauber-Aktionen",
         "effects": "Zauber-Effekte"
+      },
+      "matrix": {
+        "tab": "Matrix",
+        "actions": "Programm-Aktionen",
+        "effects": "Programm-Effekte",
+        "compileSprite": "Sprite kompilieren",
+        "compileSpriteTooltip": "Kompilierungsdialog öffnen",
+        "threadComplexForm": "Komplexe Form wirken",
+        "threadComplexFormTooltip": "Software + Resonanz würfeln",
+        "resonanceActions": "Resonanz"
       },
       "weapons": {
         "tab": "Waffen",

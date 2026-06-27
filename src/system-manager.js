@@ -65,7 +65,8 @@ function createSystemManager(coreModule) {
         group('active-skills',    'sr4.hud.activeSkills'),
         group('knowledge-skills', 'sr4.hud.knowledgeSkills'),
         group('weapons',          'sr4.hud.weapons.tab'),
-        group('spells',           'sr4.hud.spells.tab'),
+        group('magic',            'sr4.hud.magic.tab'),
+        group('matrix',           'sr4.hud.matrix.tab'),
         group('monitor',          'sr4.hud.monitor.tab'),
         group('actions',          'sr4.hud.actions.tab'),
         ...ITEM_TABS.map(t => group(t, `sr4.hud.${t}.tab`)),
@@ -89,6 +90,13 @@ function createSystemManager(coreModule) {
         ...SPELL_CATEGORIES.map(cat =>
           group(`spells-${cat.toLowerCase()}`, `sr4.spell.categories.${cat.toLowerCase()}`)
         ),
+        group('magic-summoning',  'sr4.hud.magic.summoning'),
+
+        // Matrix sub-groups
+        group('matrix-list',       'sr4.hud.matrix.tab'),
+        group('matrix-actions',    'sr4.hud.matrix.actions'),
+        group('matrix-effects',    'sr4.hud.matrix.effects'),
+        group('matrix-resonance',  'sr4.hud.matrix.resonanceActions'),
 
         // List groups
         group('weapons-list',  'sr4.hud.weapons.tab'),
@@ -139,13 +147,23 @@ function createSystemManager(coreModule) {
           groups: [ layoutGroup('weapons_weapons-list', 'weapons-list', 'sr4.hud.weapons.tab') ],
         },
         {
-          ...layoutGroup('spells', 'spells', 'sr4.hud.spells.tab'),
+          ...layoutGroup('magic', 'magic', 'sr4.hud.magic.tab'),
           groups: [
             ...SPELL_CATEGORIES.map(cat =>
-              layoutGroup(`spells_spells-${cat.toLowerCase()}`, `spells-${cat.toLowerCase()}`, `sr4.spell.categories.${cat.toLowerCase()}`)
+              layoutGroup(`magic_spells-${cat.toLowerCase()}`, `spells-${cat.toLowerCase()}`, `sr4.spell.categories.${cat.toLowerCase()}`)
             ),
-            layoutGroup('spells_spells-actions', 'spells-actions', 'sr4.hud.spells.actions'),
-            layoutGroup('spells_spells-effects', 'spells-effects', 'sr4.hud.spells.effects'),
+            layoutGroup('magic_spells-actions', 'spells-actions', 'sr4.hud.spells.actions'),
+            layoutGroup('magic_spells-effects', 'spells-effects', 'sr4.hud.spells.effects'),
+            layoutGroup('magic_magic-summoning', 'magic-summoning', 'sr4.hud.magic.summoning'),
+          ],
+        },
+        {
+          ...layoutGroup('matrix', 'matrix', 'sr4.hud.matrix.tab'),
+          groups: [
+            layoutGroup('matrix_matrix-list',      'matrix-list',      'sr4.hud.matrix.tab'),
+            layoutGroup('matrix_matrix-actions',    'matrix-actions',   'sr4.hud.matrix.actions'),
+            layoutGroup('matrix_matrix-effects',    'matrix-effects',   'sr4.hud.matrix.effects'),
+            layoutGroup('matrix_matrix-resonance',  'matrix-resonance', 'sr4.hud.matrix.resonanceActions'),
           ],
         },
         {

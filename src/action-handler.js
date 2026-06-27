@@ -39,7 +39,8 @@ export function createActionHandler(coreModule) {
       this.#buildSkills(actor, 'active',    ACTIVE_SKILL_CATEGORIES,    'active-skills',    s => s.system.category ?? 'misc');
       this.#buildSkills(actor, 'knowledge', KNOWLEDGE_SKILL_CATEGORIES, 'knowledge-skills', s => s.system.category ?? 'misc');
       this.#buildWeapons(actor);
-      this.#buildSpells(actor);
+      this.#buildMagic(actor);
+      this.#buildMatrix(actor);
       this.#buildMonitor(actor);
       this.#buildActions(actor);
       this.#buildItemActionsEffects(actor, 'Power', 'powers');
@@ -354,10 +355,10 @@ export function createActionHandler(coreModule) {
     }
 
     // -----------------------------------------------------------------------
-    // Spells
+    // Magic (Spells + Summoning)
     // -----------------------------------------------------------------------
 
-    #buildSpells(actor) {
+    #buildMagic(actor) {
       if (!actor.getAttribute('MAGIC')) return;
 
       const spells = actor.items.filter(i => i.type === 'Spell');
@@ -375,10 +376,18 @@ export function createActionHandler(coreModule) {
 
         if (!actions.length) continue;
 
-        this.#addToGroup(actions, 'spells', `spells-${category.toLowerCase()}`);
+        this.#addToGroup(actions, 'magic', `spells-${category.toLowerCase()}`);
       }
 
       this.#addLinkedActionsAndEffects(actor, spells, 'spells');
+
+      this.#addToGroup([{
+        id:           'summon-spirit',
+        name:         loc('sr4.hud.magic.summonSpirit'),
+        img:          'icons/svg/aura.svg',
+        encodedValue: 'summon|spirit',
+        tooltip:      loc('sr4.hud.magic.summonSpiritTooltip'),
+      }], 'magic', 'magic-summoning');
     }
 
     #spellTooltip(spell) {
@@ -392,6 +401,47 @@ export function createActionHandler(coreModule) {
       const area    = s.area    ? ` · ${loc('sr4.spell.area')}`     : '';
 
       return `${t('types', s.type)} · ${t('ranges', s.range)} · ${t('durations', s.duration)} · DV ${s.dv}${combatInfo}${element}${area}`;
+    }
+
+    // -----------------------------------------------------------------------
+    // Matrix (Programs + Compiling/Threading)
+    // -----------------------------------------------------------------------
+
+    #buildMatrix(actor) {
+      const programs = actor.items.filter(i => i.type === 'Program' && !i.system.complexform);
+      if (programs.length) {
+        const actions = programs
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map(p => ({
+            id:           p.id,
+            name:         p.name,
+            img:          p.img ?? 'icons/svg/item-bag.svg',
+            encodedValue: `itemSheet|${p.id}`,
+            tooltip:      p.system.description ?? p.name,
+          }));
+
+        this.#addToGroup(actions, 'matrix', 'matrix-list');
+        this.#addLinkedActionsAndEffects(actor, programs, 'matrix');
+      }
+
+      if (!actor.getAttribute('RESONANCE')) return;
+
+      this.#addToGroup([
+        {
+          id:           'compile-sprite',
+          name:         loc('sr4.hud.matrix.compileSprite'),
+          img:          'icons/svg/aura.svg',
+          encodedValue: 'summon|sprite',
+          tooltip:      loc('sr4.hud.matrix.compileSpriteTooltip'),
+        },
+        {
+          id:           'thread-complex-form',
+          name:         loc('sr4.hud.matrix.threadComplexForm'),
+          img:          'icons/svg/d20.svg',
+          encodedValue: 'threading|thread',
+          tooltip:      loc('sr4.hud.matrix.threadComplexFormTooltip'),
+        },
+      ], 'matrix', 'matrix-resonance');
     }
 
     // -----------------------------------------------------------------------

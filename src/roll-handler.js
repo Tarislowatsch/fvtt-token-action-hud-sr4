@@ -32,6 +32,8 @@ export function createRollHandler(coreModule) {
         case 'itemSheet':         return this.#openItemSheet(actor, id);
         case 'equip':             return this.#toggleEquip(actor, id);
         case 'reload':            return this.#reloadWeapon(actor, id);
+        case 'summon':            return this.#summon(actor, id);
+        case 'threading':        return this.#threadComplexForm(actor);
       }
     }
 
@@ -230,6 +232,24 @@ export function createRollHandler(coreModule) {
     async #reloadWeapon(actor, weaponId) {
       await game.sr4.reloadWeapon(actor, weaponId);
       this.#updateHud();
+    }
+
+    async #summon(actor, entityType) {
+      await game.sr4.SummoningFlow.start(actor, entityType);
+      this.#updateHud();
+    }
+
+    async #threadComplexForm(actor) {
+      const softwareSkill = actor.items.find(
+        i => i.type === 'Skill' && i.name === 'Software'
+      );
+      const softwareRating = softwareSkill?.system.rating ?? 0;
+      const resonance = actor.getAttribute('RESONANCE') ?? 0;
+      this.#dialog.openActionDialog(
+        actor,
+        loc('sr4.matrix.threading'),
+        softwareRating + resonance
+      );
     }
   };
 }

@@ -60,10 +60,26 @@
         "bodyImpact": "BOD + Impact Armor",
         "bodyBallistic": "BOD + Ballistic Armor"
       },
+      "magic": {
+        "tab": "Magic",
+        "summonSpirit": "Summon Spirit",
+        "summonSpiritTooltip": "Open Summoning dialog",
+        "summoning": "Summoning"
+      },
       "spells": {
         "tab": "Spells",
         "actions": "Spell Actions",
         "effects": "Spell Effects"
+      },
+      "matrix": {
+        "tab": "Matrix",
+        "actions": "Program Actions",
+        "effects": "Program Effects",
+        "compileSprite": "Compile Sprite",
+        "compileSpriteTooltip": "Open Compiling dialog",
+        "threadComplexForm": "Thread Complex Form",
+        "threadComplexFormTooltip": "Roll Software + Resonance",
+        "resonanceActions": "Resonance"
       },
       "weapons": {
         "tab": "Weapons",
