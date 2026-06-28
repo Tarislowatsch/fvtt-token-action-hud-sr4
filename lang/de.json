@@ -64,6 +64,8 @@
         "tab": "Magie",
         "summonSpirit": "Geist beschwören",
         "summonSpiritTooltip": "Beschwörungsdialog öffnen",
+        "summonWatcher": "Wächter beschwören",
+        "summonWatcherTooltip": "Einen Wächtergeist beschwören",
         "summoning": "Beschwörung"
       },
       "spells": {

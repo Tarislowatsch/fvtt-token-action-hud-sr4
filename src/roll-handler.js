@@ -235,7 +235,11 @@ export function createRollHandler(coreModule) {
     }
 
     async #summon(actor, entityType) {
-      await game.sr4.SummoningFlow.start(actor, entityType);
+      if (entityType === 'watcher') {
+        await game.sr4.SummoningFlow.startWatcher(actor);
+      } else {
+        await game.sr4.SummoningFlow.start(actor, entityType);
+      }
       this.#updateHud();
     }
 

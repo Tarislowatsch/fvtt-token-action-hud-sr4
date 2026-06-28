@@ -381,13 +381,22 @@ export function createActionHandler(coreModule) {
 
       this.#addLinkedActionsAndEffects(actor, spells, 'spells');
 
-      this.#addToGroup([{
-        id:           'summon-spirit',
-        name:         loc('sr4.hud.magic.summonSpirit'),
-        img:          'icons/svg/aura.svg',
-        encodedValue: 'summon|spirit',
-        tooltip:      loc('sr4.hud.magic.summonSpiritTooltip'),
-      }], 'magic', 'magic-summoning');
+      this.#addToGroup([
+        {
+          id:           'summon-spirit',
+          name:         loc('sr4.hud.magic.summonSpirit'),
+          img:          'icons/svg/aura.svg',
+          encodedValue: 'summon|spirit',
+          tooltip:      loc('sr4.hud.magic.summonSpiritTooltip'),
+        },
+        {
+          id:           'summon-watcher',
+          name:         loc('sr4.hud.magic.summonWatcher'),
+          img:          'icons/svg/eye.svg',
+          encodedValue: 'summon|watcher',
+          tooltip:      loc('sr4.hud.magic.summonWatcherTooltip'),
+        },
+      ], 'magic', 'magic-summoning');
     }
 
     #spellTooltip(spell) {

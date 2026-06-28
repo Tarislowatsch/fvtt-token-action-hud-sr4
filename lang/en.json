@@ -64,6 +64,8 @@
         "tab": "Magic",
         "summonSpirit": "Summon Spirit",
         "summonSpiritTooltip": "Open Summoning dialog",
+        "summonWatcher": "Summon Watcher",
+        "summonWatcherTooltip": "Summon a watcher spirit",
         "summoning": "Summoning"
       },
       "spells": {
