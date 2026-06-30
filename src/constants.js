@@ -42,3 +42,11 @@ export const ATTRIBUTE_KEYS = [
   'LOGIC',
   'WILLPOWER',
 ];
+
+/** Standard two-attribute tests (SR4, p.139). */
+export const ATTRIBUTE_TESTS = [
+  { key: 'composure',       attr1: 'WILLPOWER', attr2: 'CHARISMA' },
+  { key: 'judgeIntentions', attr1: 'INTUITION',  attr2: 'CHARISMA' },
+  { key: 'memory',          attr1: 'LOGIC',      attr2: 'WILLPOWER' },
+  { key: 'liftCarry',       attr1: 'STRENGTH',   attr2: 'BODY' },
+];

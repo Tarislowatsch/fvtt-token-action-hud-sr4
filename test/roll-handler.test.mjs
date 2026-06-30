@@ -9,10 +9,10 @@ const coreModule = {
 
 const SR4RollHandler = createRollHandler(coreModule);
 
-function makeActor({ currentEdge = 3, maxEdge = 5, body = 4, armor = {} } = {}) {
-  const attrs = { CURRENTEDGE: currentEdge, EDGE: maxEdge, BODY: body };
+function makeActor({ currentEdge = 3, maxEdge = 5, body = 4, armor = {}, attrs = {} } = {}) {
+  const allAttrs = { CURRENTEDGE: currentEdge, EDGE: maxEdge, BODY: body, ...attrs };
   return {
-    getAttribute: vi.fn(key => attrs[key] ?? 0),
+    getAttribute: vi.fn(key => allAttrs[key] ?? 0),
     update: vi.fn().mockResolvedValue(undefined),
     items: {},
     system: {
@@ -107,6 +107,46 @@ describe('attribute roll', () => {
     await makeHandler(actor).handleActionClick({}, 'attribute|BODY');
     expect(game.sr4.dialogUtility.openActionDialog)
       .toHaveBeenCalledWith(actor, 'sr4.stats.BODY', 1);
+  });
+});
+
+// -----------------------------------------------------------------------
+// Attribute tests (composure, judge intentions, memory, lift/carry)
+// -----------------------------------------------------------------------
+
+describe('attrTest', () => {
+  it('sums Willpower + Charisma for composure', async () => {
+    const actor = makeActor({ attrs: { WILLPOWER: 4, CHARISMA: 3 } });
+    await makeHandler(actor).handleActionClick({}, 'attrTest|composure');
+    expect(game.sr4.dialogUtility.openActionDialog)
+      .toHaveBeenCalledWith(actor, 'sr4.hud.tests.composure', 7);
+  });
+
+  it('sums Intuition + Charisma for judgeIntentions', async () => {
+    const actor = makeActor({ attrs: { INTUITION: 5, CHARISMA: 2 } });
+    await makeHandler(actor).handleActionClick({}, 'attrTest|judgeIntentions');
+    expect(game.sr4.dialogUtility.openActionDialog)
+      .toHaveBeenCalledWith(actor, 'sr4.hud.tests.judgeIntentions', 7);
+  });
+
+  it('sums Logic + Willpower for memory', async () => {
+    const actor = makeActor({ attrs: { LOGIC: 3, WILLPOWER: 4 } });
+    await makeHandler(actor).handleActionClick({}, 'attrTest|memory');
+    expect(game.sr4.dialogUtility.openActionDialog)
+      .toHaveBeenCalledWith(actor, 'sr4.hud.tests.memory', 7);
+  });
+
+  it('sums Strength + Body for liftCarry', async () => {
+    const actor = makeActor({ attrs: { STRENGTH: 6, BODY: 4 } });
+    await makeHandler(actor).handleActionClick({}, 'attrTest|liftCarry');
+    expect(game.sr4.dialogUtility.openActionDialog)
+      .toHaveBeenCalledWith(actor, 'sr4.hud.tests.liftCarry', 10);
+  });
+
+  it('does nothing for an unknown test key', async () => {
+    const actor = makeActor();
+    await makeHandler(actor).handleActionClick({}, 'attrTest|unknown');
+    expect(game.sr4.dialogUtility.openActionDialog).not.toHaveBeenCalled();
   });
 });
 

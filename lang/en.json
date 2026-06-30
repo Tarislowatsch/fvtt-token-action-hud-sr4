@@ -60,6 +60,13 @@
         "bodyImpact": "BOD + Impact Armor",
         "bodyBallistic": "BOD + Ballistic Armor"
       },
+      "tests": {
+        "tab": "Standard Tests",
+        "composure": "Composure",
+        "judgeIntentions": "Judge Intentions",
+        "memory": "Memory",
+        "liftCarry": "Lift/Carry"
+      },
       "magic": {
         "tab": "Magic",
         "summonSpirit": "Summon Spirit",

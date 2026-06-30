@@ -27,13 +27,6 @@ export function collectArmor(actor) {
 
 const ITEM_TABS = ['powers', 'implants'];
 
-/** Build a flat group entry. */
-const group = (id, nameKey, type = 'system') => ({
-  id,
-  name: loc(nameKey),
-  type,
-});
-
 /** Build a nestId-aware layout entry (top-level tab or sub-group). */
 const layoutGroup = (nestId, id, nameKey, type = 'system') => ({
   nestId,
@@ -41,6 +34,14 @@ const layoutGroup = (nestId, id, nameKey, type = 'system') => ({
   name: loc(nameKey),
   type,
 });
+
+/** Derive the flat group registry from the layout — single source of truth. */
+function flattenLayout(layout) {
+  return layout.flatMap(({ nestId: _nestId, groups: subGroups, ...tab }) => [
+    tab,
+    ...subGroups.map(({ nestId: _subNestId, ...sub }) => sub),
+  ]);
+}
 
 // ---------------------------------------------------------------------------
 
@@ -56,68 +57,9 @@ function createSystemManager(coreModule) {
 
     async registerDefaults() {
       // ------------------------------------------------------------------
-      // Flat group registry
-      // ------------------------------------------------------------------
-      const groups = [
-
-        // Top-level tabs
-        group('basics',           'sr4.hud.basics'),
-        group('active-skills',    'sr4.hud.activeSkills'),
-        group('knowledge-skills', 'sr4.hud.knowledgeSkills'),
-        group('weapons',          'sr4.hud.weapons.tab'),
-        group('magic',            'sr4.hud.magic.tab'),
-        group('matrix',           'sr4.hud.matrix.tab'),
-        group('monitor',          'sr4.hud.monitor.tab'),
-        group('actions',          'sr4.hud.actions.tab'),
-        ...ITEM_TABS.map(t => group(t, `sr4.hud.${t}.tab`)),
-
-        // Basics sub-groups
-        group('basics-improvise',        'sr4.hud.improvise'),
-        group('basics-edge-rolls',       'sr4.hud.edge.tab'),
-        group('basics-free-roll',        'sr4.hud.freeRoll'),
-        group('basics-edge-management',  'sr4.hud.edge.management'),
-        group('basics-soak',             'sr4.hud.soak.tab'),
-
-        // Skill sub-groups
-        ...ACTIVE_SKILL_CATEGORIES.map(cat =>
-          group(`skills-${cat}`,    `sr4.hud.skills.${cat}`)
-        ),
-        ...KNOWLEDGE_SKILL_CATEGORIES.map(cat =>
-          group(`knowledge-${cat}`, `sr4.hud.skills.${cat}`)
-        ),
-
-        // Spell sub-groups
-        ...SPELL_CATEGORIES.map(cat =>
-          group(`spells-${cat.toLowerCase()}`, `sr4.spell.categories.${cat.toLowerCase()}`)
-        ),
-        group('magic-summoning',  'sr4.hud.magic.summoning'),
-
-        // Matrix sub-groups
-        group('matrix-list',       'sr4.hud.matrix.tab'),
-        group('matrix-actions',    'sr4.hud.matrix.actions'),
-        group('matrix-effects',    'sr4.hud.matrix.effects'),
-        group('matrix-resonance',  'sr4.hud.matrix.resonanceActions'),
-
-        // List groups
-        group('weapons-list',  'sr4.hud.weapons.tab'),
-        group('monitor-list',  'sr4.hud.monitor.tab'),
-        group('actions-list',  'sr4.hud.actions.tab'),
-        ...ITEM_TABS.flatMap(t => [
-          group(`${t}-list`,    `sr4.hud.${t}.tab`),
-          group(`${t}-actions`, `sr4.hud.${t}.actions`),
-          group(`${t}-effects`, `sr4.hud.${t}.effects`),
-        ]),
-        group('spells-actions',   'sr4.hud.spells.actions'),
-        group('spells-effects',   'sr4.hud.spells.effects'),
-
-        // Effects tab
-        group('effects',           'sr4.hud.effects.tab'),
-        group('effects-templates', 'sr4.hud.effects.templates'),
-        group('effects-active',    'sr4.hud.effects.active'),
-      ];
-
-      // ------------------------------------------------------------------
-      // Layout (tabs with nested sub-groups)
+      // Layout (tabs with nested sub-groups) — the flat group registry
+      // required by the HUD core is derived from this below, so every
+      // group only needs to be declared once.
       // ------------------------------------------------------------------
       const layout = [
         {
@@ -128,6 +70,7 @@ function createSystemManager(coreModule) {
             layoutGroup('basics_basics-free-roll',       'basics-free-roll',       'sr4.hud.freeRoll'),
             layoutGroup('basics_basics-edge-management', 'basics-edge-management', 'sr4.hud.edge.management'),
             layoutGroup('basics_basics-soak',            'basics-soak',            'sr4.hud.soak.tab'),
+            layoutGroup('basics_basics-tests',           'basics-tests',           'sr4.hud.tests.tab'),
           ],
         },
         {
@@ -191,7 +134,7 @@ function createSystemManager(coreModule) {
         },
       ];
 
-      return { groups, layout };
+      return { groups: flattenLayout(layout), layout };
     }
   };
 }

@@ -381,6 +381,40 @@ describe('weapons', () => {
 });
 
 // -----------------------------------------------------------------------
+// Basics: standard attribute tests
+// -----------------------------------------------------------------------
+
+describe('basics-tests', () => {
+  it('builds one action per standard test with its summed dice pool', async () => {
+    const actor = makeActor({
+      attrs: { WILLPOWER: 4, CHARISMA: 3, INTUITION: 5, LOGIC: 2, STRENGTH: 6, BODY: 4 },
+    });
+    const handler = await build(actor);
+
+    const actions = actionsFor(handler, 'basics-tests');
+    expect(actions.map(a => a.id)).toEqual([
+      'test-composure', 'test-judgeIntentions', 'test-memory', 'test-liftCarry',
+    ]);
+  });
+
+  it('uses the attrTest encoded value with the test key', async () => {
+    const actor = makeActor({ attrs: { WILLPOWER: 4, CHARISMA: 3 } });
+    const handler = await build(actor);
+
+    const composure = actionsFor(handler, 'basics-tests').find(a => a.id === 'test-composure');
+    expect(composure.encodedValue).toBe('attrTest|composure');
+  });
+
+  it('includes the summed dice pool in the name', async () => {
+    const actor = makeActor({ attrs: { STRENGTH: 6, BODY: 4 } });
+    const handler = await build(actor);
+
+    const liftCarry = actionsFor(handler, 'basics-tests').find(a => a.id === 'test-liftCarry');
+    expect(liftCarry.name).toContain('(10)');
+  });
+});
+
+// -----------------------------------------------------------------------
 // Item Actions & Effects (Powers / Implants)
 // -----------------------------------------------------------------------
 

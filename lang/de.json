@@ -60,6 +60,13 @@
         "bodyImpact": "KON + Stoßpanzerung",
         "bodyBallistic": "KON + Ballistische Panzerung"
       },
+      "tests": {
+        "tab": "Standardproben",
+        "composure": "Selbstbeherrschung",
+        "judgeIntentions": "Menschenkenntnis",
+        "memory": "Erinnerungsvermögen",
+        "liftCarry": "Heben und Tragen"
+      },
       "magic": {
         "tab": "Magie",
         "summonSpirit": "Geist beschwören",

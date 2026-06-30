@@ -8,6 +8,7 @@ import {
   KNOWLEDGE_SKILL_CATEGORIES,
   SPELL_CATEGORIES,
   ATTRIBUTE_KEYS,
+  ATTRIBUTE_TESTS,
 } from './constants.js';
 
 const EFFECT_TEMPLATES = [
@@ -72,6 +73,20 @@ export function createActionHandler(coreModule) {
       const { linkedActions, effectActions } = this.#collectLinkedActionsAndEffects(actor, items);
       if (linkedActions.length) this.#addToGroup(linkedActions, groupPrefix, `${groupPrefix}-actions`);
       if (effectActions.length) this.#addToGroup(effectActions, groupPrefix, `${groupPrefix}-effects`);
+    }
+
+    /** Filter items into per-category groups, sort, map to actions, and add non-empty groups. */
+    #buildByCategory(items, categories, parentId, groupIdFor, categorize, compare, toAction) {
+      for (const category of categories) {
+        const actions = items
+          .filter(item => categorize(item) === category)
+          .sort(compare)
+          .map(toAction);
+
+        if (!actions.length) continue;
+
+        this.#addToGroup(actions, parentId, groupIdFor(category));
+      }
     }
 
     // -----------------------------------------------------------------------
@@ -197,6 +212,7 @@ export function createActionHandler(coreModule) {
       this.#buildFreeRoll();
       this.#buildEdge(actor);
       this.#buildSoak(actor);
+      this.#buildTests(actor);
     }
 
     #buildAttributes(actor) {
@@ -241,6 +257,22 @@ export function createActionHandler(coreModule) {
       'basics', 'basics-soak');
     }
 
+    #buildTests(actor) {
+      const actions = ATTRIBUTE_TESTS.map(({ key, attr1, attr2 }) => {
+        const v1 = actor.getAttribute(attr1);
+        const v2 = actor.getAttribute(attr2);
+        return {
+          id:           `test-${key}`,
+          name:         `${loc(`sr4.hud.tests.${key}`)} (${v1 + v2})`,
+          img:          'icons/svg/d20.svg',
+          encodedValue: `attrTest|${key}`,
+          tooltip:      `${loc(`sr4.hud.tests.${key}`)} · ${loc(`sr4.stats.${attr1}`)} ${v1} + ${loc(`sr4.stats.${attr2}`)} ${v2} = ${v1 + v2}`,
+        };
+      });
+
+      this.#addToGroup(actions, 'basics', 'basics-tests');
+    }
+
     #buildFreeRoll() {
       this.#addToGroup([{
         id:           'free-roll',
@@ -271,22 +303,19 @@ export function createActionHandler(coreModule) {
       );
       const prefix = type === 'active' ? 'skills' : 'knowledge';
 
-      for (const category of categories) {
-        const actions = skills
-          .filter(s => categorize(s) === category)
-          .sort((a, b) => this.#skillName(a).localeCompare(this.#skillName(b)))
-          .map(skill => ({
-            id:           skill.id,
-            name:         this.#skillButtonLabel(skill, actor),
-            img:          skill.img,
-            encodedValue: `skill|${skill.id}`,
-            tooltip:      this.#skillTooltip(skill),
-          }));
-
-        if (!actions.length) continue;
-
-        this.#addToGroup(actions, parentId, `${prefix}-${category}`);
-      }
+      this.#buildByCategory(
+        skills, categories, parentId,
+        category => `${prefix}-${category}`,
+        categorize,
+        (a, b) => this.#skillName(a).localeCompare(this.#skillName(b)),
+        skill => ({
+          id:           skill.id,
+          name:         this.#skillButtonLabel(skill, actor),
+          img:          skill.img,
+          encodedValue: `skill|${skill.id}`,
+          tooltip:      this.#skillTooltip(skill),
+        })
+      );
     }
 
     #skillName(skill) {
@@ -362,22 +391,20 @@ export function createActionHandler(coreModule) {
       if (!actor.getAttribute('MAGIC')) return;
 
       const spells = actor.items.filter(i => i.type === 'Spell');
-      for (const category of SPELL_CATEGORIES) {
-        const actions = spells
-          .filter(s => s.system.category === category)
-          .sort((a, b) => a.name.localeCompare(b.name))
-          .map(spell => ({
-            id:           spell.id,
-            name:         spell.name,
-            img:          spell.img,
-            encodedValue: `spell|${spell.id}`,
-            tooltip:      this.#spellTooltip(spell),
-          }));
 
-        if (!actions.length) continue;
-
-        this.#addToGroup(actions, 'magic', `spells-${category.toLowerCase()}`);
-      }
+      this.#buildByCategory(
+        spells, SPELL_CATEGORIES, 'magic',
+        category => `spells-${category.toLowerCase()}`,
+        spell => spell.system.category,
+        (a, b) => a.name.localeCompare(b.name),
+        spell => ({
+          id:           spell.id,
+          name:         spell.name,
+          img:          spell.img,
+          encodedValue: `spell|${spell.id}`,
+          tooltip:      this.#spellTooltip(spell),
+        })
+      );
 
       this.#addLinkedActionsAndEffects(actor, spells, 'spells');
 

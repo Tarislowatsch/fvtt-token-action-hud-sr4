@@ -3,6 +3,7 @@
  */
 
 import { loc, collectArmor } from './system-manager.js';
+import { ATTRIBUTE_TESTS } from './constants.js';
 
 export function createRollHandler(coreModule) {
   return class SR4RollHandler extends coreModule.api.RollHandler {
@@ -25,6 +26,7 @@ export function createRollHandler(coreModule) {
         case 'edgeRoll':       return this.#rollEdge(actor, id);
         case 'freeRoll':       return this.#dialog.handleFreeRoll();
         case 'soak':           return this.#rollSoak(actor, id);
+        case 'attrTest':       return this.#rollAttrTest(actor, id);
         case 'autosoft':       return this.#rollAutosoft(actor, id);
         case 'effectToggle':      return this.#toggleEffect(actor, id);
         case 'effectTemplate':    return this.#applyTemplate(actor, id);
@@ -108,6 +110,14 @@ export function createRollHandler(coreModule) {
 
       if (!config) return;
       this.#dialog.openActionDialog(actor, loc(config.label), config.dice);
+    }
+
+    async #rollAttrTest(actor, key) {
+      const test = ATTRIBUTE_TESTS.find(t => t.key === key);
+      if (!test) return;
+
+      const dice = actor.getAttribute(test.attr1) + actor.getAttribute(test.attr2);
+      this.#dialog.openActionDialog(actor, loc(`sr4.hud.tests.${key}`), dice);
     }
 
     // -----------------------------------------------------------------------
