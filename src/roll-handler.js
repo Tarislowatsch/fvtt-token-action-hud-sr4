@@ -254,16 +254,8 @@ export function createRollHandler(coreModule) {
     }
 
     async #threadComplexForm(actor) {
-      const softwareSkill = actor.items.find(
-        i => i.type === 'Skill' && i.name === 'Software'
-      );
-      const softwareRating = softwareSkill?.system.rating ?? 0;
-      const resonance = actor.getAttribute('RESONANCE') ?? 0;
-      this.#dialog.openActionDialog(
-        actor,
-        loc('sr4.matrix.threading'),
-        softwareRating + resonance
-      );
+      await game.sr4.ThreadingFlow.start(actor);
+      this.#updateHud();
     }
   };
 }
