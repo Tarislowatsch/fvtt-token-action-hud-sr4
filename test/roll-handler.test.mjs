@@ -270,3 +270,52 @@ describe('itemSheet', () => {
     await expect(makeHandler(actor).handleActionClick({}, 'itemSheet|missing')).resolves.toBeUndefined();
   });
 });
+
+// -----------------------------------------------------------------------
+// Vehicle: control mode + drone actions
+// -----------------------------------------------------------------------
+
+describe('controlMode', () => {
+  it('persists the selected mode and refreshes the HUD', async () => {
+    const actor = makeActor();
+    await makeHandler(actor).handleActionClick({}, 'controlMode|jumped');
+    expect(actor.update).toHaveBeenCalledWith({ 'system.controlMode': 'jumped' });
+    expect(game.tokenActionHud.update).toHaveBeenCalled();
+  });
+});
+
+describe('droneAction', () => {
+  it('opens the drone roll dialog for the given action', async () => {
+    const actor = makeActor();
+    await makeHandler(actor).handleActionClick({}, 'droneAction|perception');
+    expect(game.sr4.rigging.openDroneRollDialog).toHaveBeenCalledWith(actor, 'perception');
+  });
+});
+
+describe('vehicle weapon roll', () => {
+  it('routes vehicle weapons to the drone attack dialog', async () => {
+    const weapon = { id: 'w1', name: 'Turret', system: {} };
+    const actor = makeActor();
+    actor.type = 'vehicle';
+    actor.items.get = vi.fn(id => id === 'w1' ? weapon : undefined);
+
+    await makeHandler(actor).handleActionClick({}, 'weapon|w1');
+
+    expect(game.sr4.rigging.openDroneAttackDialog).toHaveBeenCalledWith(actor, weapon);
+    expect(game.sr4.dialogUtility.handleAttackRoll).not.toHaveBeenCalled();
+  });
+
+  it('keeps the skill-based attack flow for characters', async () => {
+    const weapon = { id: 'w1', name: 'Pistol', system: { attackSkill: 'pistols' } };
+    const skill = { name: 'Pistols' };
+    const actor = makeActor();
+    actor.type = 'character';
+    actor.items.get = vi.fn(() => weapon);
+    actor.findByAttackSkill = vi.fn(() => skill);
+
+    await makeHandler(actor).handleActionClick({}, 'weapon|w1');
+
+    expect(game.sr4.dialogUtility.handleAttackRoll).toHaveBeenCalledWith(actor, 'Pistols', weapon);
+    expect(game.sr4.rigging.openDroneAttackDialog).not.toHaveBeenCalled();
+  });
+});

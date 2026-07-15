@@ -9,7 +9,21 @@ import {
   SPELL_CATEGORIES,
   ATTRIBUTE_KEYS,
   ATTRIBUTE_TESTS,
+  CONTROL_MODES,
+  DRONE_ACTIONS,
 } from './constants.js';
+
+const CONTROL_MODE_ICONS = {
+  autonomous: 'icons/svg/mystery-man.svg',
+  remote:     'icons/svg/net.svg',
+  jumped:     'icons/svg/eye.svg',
+};
+
+const DRONE_ACTION_ICONS = {
+  maneuvering:  'icons/svg/wingfoot.svg',
+  perception:   'icons/svg/eye.svg',
+  infiltration: 'icons/svg/cowled.svg',
+};
 
 const EFFECT_TEMPLATES = [
   { key: 'sustain',        icon: 'aura.svg' },
@@ -27,7 +41,7 @@ export function createActionHandler(coreModule) {
       if (!actor) return;
 
       if (actor.type === 'vehicle') {
-        this.#buildVehicle(actor);
+        await this.#buildVehicle(actor);
         return;
       }
 
@@ -93,9 +107,12 @@ export function createActionHandler(coreModule) {
     // Vehicle
     // -----------------------------------------------------------------------
 
-    #buildVehicle(actor) {
+    async #buildVehicle(actor) {
       const sys = actor.system;
       const pilot = sys.pilot ?? 0;
+
+      this.#buildControlModes(actor);
+      await this.#buildDroneActions(actor);
 
       const statActions = [
         { id: 'veh-body',     name: `${loc('sr4.vehicle.body')} (${sys.body ?? 0})`,       encodedValue: 'freeRoll|free-roll', img: 'icons/svg/shield.svg' },
@@ -122,6 +139,45 @@ export function createActionHandler(coreModule) {
       this.#buildWeapons(actor);
       this.#buildVehicleMonitor(actor);
       this.#buildEffects(actor);
+    }
+
+    #buildControlModes(actor) {
+      const current = actor.system.controlMode ?? 'autonomous';
+      const apiModes = Object.values(game.sr4?.rigging?.ControlModes ?? {});
+      const modes = apiModes.length ? apiModes : CONTROL_MODES;
+
+      const actions = modes.map(mode => ({
+        id:           `mode-${mode}`,
+        name:         loc(`sr4.vehicle.controlModes.${mode}`),
+        img:          CONTROL_MODE_ICONS[mode] ?? 'icons/svg/d20-grey.svg',
+        encodedValue: `controlMode|${mode}`,
+        cssClass:     mode === current ? 'active' : '',
+        tooltip:      loc('sr4.hud.vehicle.modeTooltip'),
+      }));
+
+      this.#addToGroup(actions, 'basics', 'basics-control-mode');
+    }
+
+    async #buildDroneActions(actor) {
+      const rigging = game.sr4?.rigging;
+      if (!rigging) return;
+
+      const rigger = await rigging.resolveRigger(actor);
+      const stored = actor.system.controlMode ?? 'autonomous';
+      const mode = stored !== 'autonomous' && !rigger ? 'autonomous' : stored;
+
+      const actions = DRONE_ACTIONS.map(action => {
+        const { pool } = rigging.resolveDronePool(actor, rigger, mode, action);
+        return {
+          id:           `drone-${action}`,
+          name:         `${loc(`sr4.vehicle.actions.${action}`)} (${pool})`,
+          img:          DRONE_ACTION_ICONS[action] ?? 'icons/svg/d20.svg',
+          encodedValue: `droneAction|${action}`,
+          tooltip:      `${loc(`sr4.vehicle.actions.${action}`)} · ${loc(`sr4.vehicle.controlModes.${mode}`)}`,
+        };
+      });
+
+      this.#addToGroup(actions, 'basics', 'basics-drone-actions');
     }
 
     #buildVehicleMonitor(actor) {
@@ -460,7 +516,7 @@ export function createActionHandler(coreModule) {
         this.#addLinkedActionsAndEffects(actor, programs, 'matrix');
       }
 
-      if (!actor.getAttribute('RESONANCE')) return;
+      if (!actor.system.technomancy?.technomancer) return;
 
       this.#addToGroup([
         {

@@ -67,6 +67,11 @@
         "memory": "Memory",
         "liftCarry": "Lift/Carry"
       },
+      "vehicle": {
+        "controlMode": "Control Mode",
+        "droneActions": "Drone Actions",
+        "modeTooltip": "Click to set the vehicle's control mode"
+      },
       "magic": {
         "tab": "Magic",
         "summonSpirit": "Summon Spirit",

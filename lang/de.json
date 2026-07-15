@@ -67,6 +67,11 @@
         "memory": "Erinnerungsvermögen",
         "liftCarry": "Heben und Tragen"
       },
+      "vehicle": {
+        "controlMode": "Kontrollmodus",
+        "droneActions": "Drohnen-Aktionen",
+        "modeTooltip": "Klicke, um den Kontrollmodus des Fahrzeugs zu setzen"
+      },
       "magic": {
         "tab": "Magie",
         "summonSpirit": "Geist beschwören",

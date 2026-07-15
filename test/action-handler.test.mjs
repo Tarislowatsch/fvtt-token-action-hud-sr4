@@ -29,10 +29,10 @@ async function build(actor) {
   return handler;
 }
 
-function makeActor({ type = 'character', attrs = {}, items = [], effects = [] } = {}) {
+function makeActor({ type = 'character', attrs = {}, items = [], effects = [], technomancer = false } = {}) {
   return {
     type,
-    system: { conditionMonitor: null },
+    system: { conditionMonitor: null, technomancy: { technomancer } },
     getAttribute: vi.fn(key => attrs[key] ?? 0),
     items: {
       filter: vi.fn(fn => items.filter(fn)),
@@ -180,6 +180,54 @@ describe('spell tooltip', () => {
 
     const calledGroups = handler.addActions.mock.calls.map(([, g]) => g.id);
     expect(calledGroups).not.toContain('spells-combat');
+  });
+});
+
+// -----------------------------------------------------------------------
+// Matrix
+// -----------------------------------------------------------------------
+
+describe('matrix', () => {
+  function makeProgram(overrides = {}) {
+    const { system, ...rest } = overrides;
+    return {
+      id:     'p1',
+      type:   'Program',
+      name:   'Attack',
+      img:    null,
+      ...rest,
+      system: { complexform: false, description: null, ...system },
+    };
+  }
+
+  it('lists programs, excluding complex forms', async () => {
+    const items = [
+      makeProgram({ id: 'p1', name: 'Attack' }),
+      makeProgram({ id: 'p2', name: 'Threading', system: { complexform: true } }),
+    ];
+    const actor = makeActor({ items });
+    const handler = await build(actor);
+
+    const actions = actionsFor(handler, 'matrix-list');
+    expect(actions).toHaveLength(1);
+    expect(actions[0].id).toBe('p1');
+    expect(actions[0].encodedValue).toBe('itemSheet|p1');
+  });
+
+  it('shows resonance actions for technomancers', async () => {
+    const actor = makeActor({ technomancer: true });
+    const handler = await build(actor);
+
+    const actions = actionsFor(handler, 'matrix-resonance');
+    expect(actions.map(a => a.encodedValue)).toEqual(['summon|sprite', 'threading|thread']);
+  });
+
+  it('hides resonance actions for non-technomancers', async () => {
+    const actor = makeActor({ technomancer: false });
+    const handler = await build(actor);
+
+    const calledGroups = handler.addActions.mock.calls.map(([, g]) => g.id);
+    expect(calledGroups).not.toContain('matrix-resonance');
   });
 });
 
@@ -519,5 +567,84 @@ describe('actions', () => {
     const actions = actionsFor(handler, 'actions-list');
     expect(actions).toHaveLength(1);
     expect(actions[0].id).toBe('a1');
+  });
+});
+
+// -----------------------------------------------------------------------
+// Vehicle: control mode + drone actions
+// -----------------------------------------------------------------------
+
+describe('vehicle control mode', () => {
+  function makeVehicle({ controlMode = 'autonomous', items = [] } = {}) {
+    const actor = makeActor({ type: 'vehicle', items });
+    actor.system = { conditionMonitor: null, controlMode, pilot: 2, body: 3, armor: 1, sensor: 3, handling: 0 };
+    return actor;
+  }
+
+  it('builds one toggle per control mode with the current mode marked active', async () => {
+    const handler = await build(makeVehicle({ controlMode: 'remote' }));
+
+    const actions = actionsFor(handler, 'basics-control-mode');
+    expect(actions.map(a => a.id)).toEqual(['mode-autonomous', 'mode-remote', 'mode-jumped']);
+    expect(actions.find(a => a.id === 'mode-remote').cssClass).toBe('active');
+    expect(actions.find(a => a.id === 'mode-autonomous').cssClass).toBe('');
+    expect(actions[0].encodedValue).toBe('controlMode|autonomous');
+  });
+
+  it('defaults to autonomous when no controlMode is stored', async () => {
+    const vehicle = makeVehicle();
+    delete vehicle.system.controlMode;
+    const handler = await build(vehicle);
+
+    const actions = actionsFor(handler, 'basics-control-mode');
+    expect(actions.find(a => a.id === 'mode-autonomous').cssClass).toBe('active');
+  });
+});
+
+describe('vehicle drone actions', () => {
+  function makeVehicle({ controlMode = 'autonomous' } = {}) {
+    const actor = makeActor({ type: 'vehicle' });
+    actor.system = { conditionMonitor: null, controlMode, pilot: 2, body: 3, armor: 1, sensor: 3, handling: 0 };
+    return actor;
+  }
+
+  it('builds maneuvering, perception and infiltration with the resolved pool', async () => {
+    const handler = await build(makeVehicle());
+
+    const actions = actionsFor(handler, 'basics-drone-actions');
+    expect(actions.map(a => a.id)).toEqual(['drone-maneuvering', 'drone-perception', 'drone-infiltration']);
+    expect(actions[0].name).toBe('sr4.vehicle.actions.maneuvering (5)');
+    expect(actions[0].encodedValue).toBe('droneAction|maneuvering');
+  });
+
+  it('falls back to autonomous pools when a rigger mode is stored but no rigger is linked', async () => {
+    const vehicle = makeVehicle({ controlMode: 'jumped' });
+    await build(vehicle);
+
+    expect(game.sr4.rigging.resolveDronePool)
+      .toHaveBeenCalledWith(vehicle, null, 'autonomous', 'maneuvering');
+  });
+
+  it('uses the stored mode when a rigger is linked', async () => {
+    const rigger = { id: 'rigger1' };
+    game.sr4.rigging.resolveRigger.mockResolvedValueOnce(rigger);
+    const vehicle = makeVehicle({ controlMode: 'jumped' });
+    await build(vehicle);
+
+    expect(game.sr4.rigging.resolveDronePool)
+      .toHaveBeenCalledWith(vehicle, rigger, 'jumped', 'maneuvering');
+  });
+
+  it('omits the drone actions group when the system rigging API is unavailable', async () => {
+    const rigging = game.sr4.rigging;
+    delete game.sr4.rigging;
+    try {
+      const handler = await build(makeVehicle());
+      const calledGroups = handler.addActions.mock.calls.map(([, g]) => g.id);
+      expect(calledGroups).not.toContain('basics-drone-actions');
+      expect(calledGroups).toContain('basics-control-mode');
+    } finally {
+      game.sr4.rigging = rigging;
+    }
   });
 });

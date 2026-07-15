@@ -43,6 +43,12 @@ export const ATTRIBUTE_KEYS = [
   'WILLPOWER',
 ];
 
+/** Vehicle control modes (fallback when the system API is unavailable). */
+export const CONTROL_MODES = ['autonomous', 'remote', 'jumped'];
+
+/** Drone actions rollable from the HUD (SR4 rigger table). */
+export const DRONE_ACTIONS = ['maneuvering', 'perception', 'infiltration'];
+
 /** Standard two-attribute tests (SR4, p.139). */
 export const ATTRIBUTE_TESTS = [
   { key: 'composure',       attr1: 'WILLPOWER', attr2: 'CHARISMA' },

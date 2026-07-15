@@ -71,6 +71,8 @@ function createSystemManager(coreModule) {
             layoutGroup('basics_basics-edge-management', 'basics-edge-management', 'sr4.hud.edge.management'),
             layoutGroup('basics_basics-soak',            'basics-soak',            'sr4.hud.soak.tab'),
             layoutGroup('basics_basics-tests',           'basics-tests',           'sr4.hud.tests.tab'),
+            layoutGroup('basics_basics-control-mode',    'basics-control-mode',    'sr4.hud.vehicle.controlMode'),
+            layoutGroup('basics_basics-drone-actions',   'basics-drone-actions',   'sr4.hud.vehicle.droneActions'),
           ],
         },
         {

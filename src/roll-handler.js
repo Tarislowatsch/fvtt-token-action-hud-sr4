@@ -28,6 +28,8 @@ export function createRollHandler(coreModule) {
         case 'soak':           return this.#rollSoak(actor, id);
         case 'attrTest':       return this.#rollAttrTest(actor, id);
         case 'autosoft':       return this.#rollAutosoft(actor, id);
+        case 'controlMode':    return this.#setControlMode(actor, id);
+        case 'droneAction':    return game.sr4.rigging?.openDroneRollDialog?.(actor, id);
         case 'effectToggle':      return this.#toggleEffect(actor, id);
         case 'effectTemplate':    return this.#applyTemplate(actor, id);
         case 'itemEffectToggle':  return this.#toggleItemEffect(actor, id);
@@ -64,10 +66,19 @@ export function createRollHandler(coreModule) {
       const weapon = actor.items.get(weaponId);
       if (!weapon) return;
 
+      if (actor.type === 'vehicle' && game.sr4.rigging?.openDroneAttackDialog) {
+        return game.sr4.rigging.openDroneAttackDialog(actor, weapon);
+      }
+
       const skill = actor.findByAttackSkill(weapon.system.attackSkill);
       if (!skill) return ui.notifications?.warn(`No attack skill found for ${weapon.name}`);
 
       await this.#dialog.handleAttackRoll(actor, skill.name, weapon);
+    }
+
+    async #setControlMode(actor, mode) {
+      await actor.update({ 'system.controlMode': mode });
+      this.#updateHud();
     }
 
     async #castSpell(actor, spellId) {
