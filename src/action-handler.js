@@ -25,6 +25,12 @@ const DRONE_ACTION_ICONS = {
   infiltration: 'icons/svg/cowled.svg',
 };
 
+const REALM_ICONS = {
+  physical: 'icons/svg/mystery-man.svg',
+  matrix:   'icons/svg/net.svg',
+  astral:   'icons/svg/eye.svg',
+};
+
 const EFFECT_TEMPLATES = [
   { key: 'sustain',        icon: 'aura.svg' },
   { key: 'disoriented',    icon: 'stoned.svg' },
@@ -264,11 +270,42 @@ export function createActionHandler(coreModule) {
 
     #buildBasics(actor) {
       this.#buildAttributes(actor);
+      this.#buildRealms(actor);
       this.#buildEdgeRolls(actor);
       this.#buildFreeRoll();
       this.#buildEdge(actor);
       this.#buildSoak(actor);
       this.#buildTests(actor);
+    }
+
+    #buildRealms(actor) {
+      const api = game.sr4?.initiative;
+      if (!api) return;
+
+      const realms = api.getAvailableRealms(actor);
+      if (realms.length < 2) return;
+
+      const combatant = this.#activeCombatant(actor);
+      const current = combatant
+        ? api.getCombatantRealm(combatant)
+        : (actor.system.realm ?? 'physical');
+
+      const actions = realms.map(realm => ({
+        id:           `realm-${realm}`,
+        name:         loc(`sr4.combat.realm.${realm}`),
+        img:          REALM_ICONS[realm] ?? 'icons/svg/d20-grey.svg',
+        encodedValue: `realm|${realm}`,
+        cssClass:     realm === current ? 'active' : '',
+        tooltip:      loc('sr4.hud.realm.tooltip'),
+      }));
+
+      this.#addToGroup(actions, 'basics', 'basics-realm');
+    }
+
+    #activeCombatant(actor) {
+      return game.combat?.combatants.find(
+        c => (this.token && c.tokenId === this.token.id) || c.actor?.id === actor.id
+      );
     }
 
     #buildAttributes(actor) {
@@ -304,13 +341,18 @@ export function createActionHandler(coreModule) {
 
       const { ballistic, impact } = collectArmor(actor);
 
-      this.#addToGroup([
+      const soakActions = [
         { id: 'soak-willpower',      name: `${loc('sr4.hud.soak.willpower')}    (${will})`,           tooltip: `${loc('sr4.hud.soak.willpower')}    · ${will} ${loc('sr4.skills.dice')}`,                                  encodedValue: 'soak|willpower' },
         { id: 'soak-body',           name: `${loc('sr4.hud.soak.body')}         (${body})`,           tooltip: `${loc('sr4.hud.soak.body')}         · ${body} ${loc('sr4.skills.dice')}`,                                  encodedValue: 'soak|body' },
         { id: 'soak-body-impact',    name: `${loc('sr4.hud.soak.bodyImpact')}   (${body + impact})`,  tooltip: `${loc('sr4.hud.soak.bodyImpact')}   · BODY ${body} + Impact ${impact} = ${body + impact}`,                  encodedValue: 'soak|body-impact' },
         { id: 'soak-body-ballistic', name: `${loc('sr4.hud.soak.bodyBallistic')}(${body + ballistic})`,tooltip: `${loc('sr4.hud.soak.bodyBallistic')} · BODY ${body} + Ballistic ${ballistic} = ${body + ballistic}`,       encodedValue: 'soak|body-ballistic' },
-      ].map(a => ({ ...a, img: 'icons/svg/shield.svg' })),
-      'basics', 'basics-soak');
+      ].map(a => ({ ...a, img: 'icons/svg/shield.svg' }));
+
+      const armorActions = actor.items
+        .filter(i => i.type === 'Armor')
+        .map(a => this.#equipAction(a, 'icons/svg/shield.svg'));
+
+      this.#addToGroup([...soakActions, ...armorActions], 'basics', 'basics-soak');
     }
 
     #buildTests(actor) {
@@ -404,39 +446,32 @@ export function createActionHandler(coreModule) {
     // -----------------------------------------------------------------------
 
     #buildWeapons(actor) {
-      const actions = [];
+      const actions = actor.items
+        .filter(i => i.type === 'Ranged Weapon' || i.type === 'Melee Weapon')
+        .map(w => this.#weaponAction(w));
 
-      for (const w of actor.items.filter(i => i.type === 'Ranged Weapon' || i.type === 'Melee Weapon')) {
-        const dmg = w.system.effectiveDamage ?? w.system.damage ?? '?';
-        const ap = w.system.effectiveAP ?? w.system.ap ?? '?';
-        actions.push({
-          id:           w.id,
-          name:         w.name,
-          img:          w.img,
-          encodedValue: `weapon|${w.id}`,
-          tooltip:      `${w.name} · DMG: ${dmg} AP: ${ap}`,
-        });
-
-        if (w.type === 'Melee Weapon') {
-          actions.push(this.#equipAction(w, 'icons/svg/sword.svg'));
-        }
-
-        if (w.type === 'Ranged Weapon' && w.system.maxAmmo > 0) {
-          actions.push({
-            id:           `reload-${w.id}`,
-            name:         `↺ ${w.name} (${w.system.currentAmmo}/${w.system.maxAmmo})`,
-            img:          'icons/svg/regen.svg',
-            encodedValue: `reload|${w.id}`,
-            tooltip:      `${loc('sr4.weapon.reload')}: ${w.system.currentAmmo}/${w.system.maxAmmo}`,
-          });
-        }
-      }
-
-      for (const a of actor.items.filter(i => i.type === 'Armor')) {
-        actions.push(this.#equipAction(a, 'icons/svg/shield.svg'));
-      }
-
+      if (!actions.length) return;
       this.#addToGroup(actions, 'weapons', 'weapons-list');
+    }
+
+    /** One button per weapon: click rolls, Ctrl+Click toggles equip, Shift+Click reloads (ranged). */
+    #weaponAction(w) {
+      const dmg   = w.system.effectiveDamage ?? w.system.damage ?? '?';
+      const ap    = w.system.effectiveAP ?? w.system.ap ?? '?';
+      const stats = `${w.name} · DMG: ${dmg} AP: ${ap}`;
+
+      const hasAmmo = w.type === 'Ranged Weapon' && w.system.maxAmmo > 0;
+      const hints   = [loc('sr4.hud.weapons.equipHint')];
+      if (hasAmmo) hints.push(loc('sr4.hud.weapons.reloadHint'));
+
+      return {
+        id:           w.id,
+        name:         hasAmmo ? `${w.name} (${w.system.currentAmmo}/${w.system.maxAmmo})` : w.name,
+        img:          w.img,
+        encodedValue: `weapon|${w.id}`,
+        cssClass:     w.system.equipped ? 'active' : '',
+        tooltip:      `${stats}\n${hints.join('\n')}`,
+      };
     }
 
     // -----------------------------------------------------------------------

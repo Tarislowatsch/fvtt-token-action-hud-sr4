@@ -282,66 +282,61 @@ describe('weapons', () => {
     const handler = await build(actor);
 
     const actions = actionsFor(handler, 'weapons-list');
-    const weapons = actions.filter(a => !a.id.startsWith('equip-') && !a.id.startsWith('reload-'));
-    expect(weapons).toHaveLength(2);
-    expect(weapons.map(a => a.id)).toEqual(['w1', 'w2']);
+    expect(actions).toHaveLength(2);
+    expect(actions.map(a => a.id)).toEqual(['w1', 'w2']);
   });
 
-  it('appends a reload action for a ranged weapon with maxAmmo > 0', async () => {
+  it('builds exactly one button per weapon', async () => {
     const items = [
       { id: 'w1', type: 'Ranged Weapon', name: 'Pistol', img: null,
-        system: { damage: 8, ap: -4, loadedAmmoId: 'ammo1', maxAmmo: 15, currentAmmo: 7 } },
+        system: { damage: 8, ap: -4, maxAmmo: 15, currentAmmo: 7 } },
+      { id: 'w2', type: 'Melee Weapon', name: 'Knife', img: null,
+        system: { damage: 4, ap: 0, equipped: true } },
     ];
     const actor = makeActor({ items });
     const handler = await build(actor);
 
     const actions = actionsFor(handler, 'weapons-list');
     expect(actions).toHaveLength(2);
-    const reload = actions.find(a => a.id === 'reload-w1');
-    expect(reload).toBeDefined();
-    expect(reload.encodedValue).toBe('reload|w1');
-    expect(reload.img).toBe('icons/svg/regen.svg');
-    expect(reload.name).toBe('↺ Pistol (7/15)');
-    expect(reload.tooltip).toBe('sr4.weapon.reload: 7/15');
+    expect(actions.every(a => a.encodedValue.startsWith('weapon|'))).toBe(true);
   });
 
-  it('appends a reload action even without loaded ammo', async () => {
+  it('shows ammo in the name and both hints in the tooltip for a ranged weapon with maxAmmo > 0', async () => {
     const items = [
       { id: 'w1', type: 'Ranged Weapon', name: 'Pistol', img: null,
-        system: { damage: 8, ap: -4, loadedAmmoId: null, maxAmmo: 15, currentAmmo: 0 } },
+        system: { damage: 8, ap: -4, maxAmmo: 15, currentAmmo: 7 } },
     ];
     const actor = makeActor({ items });
     const handler = await build(actor);
 
-    const actions = actionsFor(handler, 'weapons-list');
-    expect(actions).toHaveLength(2);
-    expect(actions.find(a => a.id === 'reload-w1')).toBeDefined();
+    const weapon = actionsFor(handler, 'weapons-list')[0];
+    expect(weapon.name).toBe('Pistol (7/15)');
+    expect(weapon.encodedValue).toBe('weapon|w1');
+    expect(weapon.tooltip).toBe('Pistol · DMG: 8 AP: -4\nsr4.hud.weapons.equipHint\nsr4.hud.weapons.reloadHint');
   });
 
-  it('does not add a reload action when maxAmmo is 0', async () => {
+  it('omits ammo and reload hint when maxAmmo is 0', async () => {
     const items = [
       { id: 'w1', type: 'Ranged Weapon', name: 'SMG', img: null,
-        system: { damage: 6, ap: 0, loadedAmmoId: 'ammo1', maxAmmo: 0, currentAmmo: 0 } },
+        system: { damage: 6, ap: 0, maxAmmo: 0, currentAmmo: 0 } },
     ];
     const actor = makeActor({ items });
     const handler = await build(actor);
 
-    const actions = actionsFor(handler, 'weapons-list');
-    expect(actions).toHaveLength(1);
-    expect(actions[0].id).toBe('w1');
+    const weapon = actionsFor(handler, 'weapons-list')[0];
+    expect(weapon.name).toBe('SMG');
+    expect(weapon.tooltip).toBe('SMG · DMG: 6 AP: 0\nsr4.hud.weapons.equipHint');
   });
 
-  it('does not add a reload action for a melee weapon', async () => {
+  it('marks an equipped ranged weapon with the active css class', async () => {
     const items = [
-      { id: 'w1', type: 'Melee Weapon', name: 'Sword', img: null,
-        system: { damage: 6, ap: -1, loadedAmmoId: 'ammo1', maxAmmo: 1, currentAmmo: 1 } },
+      { id: 'w1', type: 'Ranged Weapon', name: 'Pistol', img: null,
+        system: { damage: 8, ap: -4, maxAmmo: 15, currentAmmo: 7, equipped: true } },
     ];
     const actor = makeActor({ items });
     const handler = await build(actor);
 
-    const actions = actionsFor(handler, 'weapons-list');
-    expect(actions.find(a => a.id.startsWith('reload-'))).toBeUndefined();
-    expect(actions.find(a => a.id === 'w1')).toBeDefined();
+    expect(actionsFor(handler, 'weapons-list')[0].cssClass).toBe('active');
   });
 
   it('prefers effectiveDamage/effectiveAP over base values in the tooltip', async () => {
@@ -353,10 +348,23 @@ describe('weapons', () => {
     const handler = await build(actor);
 
     const weapon = actionsFor(handler, 'weapons-list').find(a => a.id === 'w1');
-    expect(weapon.tooltip).toBe('Katana · DMG: 8 AP: -3');
+    expect(weapon.tooltip).toBe('Katana · DMG: 8 AP: -3\nsr4.hud.weapons.equipHint');
   });
 
-  it('appends an equip toggle for a melee weapon', async () => {
+  it('does not show the reload hint for a melee weapon', async () => {
+    const items = [
+      { id: 'w1', type: 'Melee Weapon', name: 'Sword', img: null,
+        system: { damage: 6, ap: -1, maxAmmo: 1, currentAmmo: 1 } },
+    ];
+    const actor = makeActor({ items });
+    const handler = await build(actor);
+
+    const weapon = actionsFor(handler, 'weapons-list')[0];
+    expect(weapon.name).toBe('Sword');
+    expect(weapon.tooltip).not.toContain('sr4.hud.weapons.reloadHint');
+  });
+
+  it('shows the equip hint and no active class for an unequipped melee weapon', async () => {
     const items = [
       { id: 'w1', type: 'Melee Weapon', name: 'Knife', img: null,
         system: { damage: 4, ap: 0, equipped: false } },
@@ -364,11 +372,10 @@ describe('weapons', () => {
     const actor = makeActor({ items });
     const handler = await build(actor);
 
-    const equip = actionsFor(handler, 'weapons-list').find(a => a.id === 'equip-w1');
-    expect(equip).toBeDefined();
-    expect(equip.encodedValue).toBe('equip|w1');
-    expect(equip.cssClass).toBe('');
-    expect(equip.name).toBe('○ Knife');
+    const weapon = actionsFor(handler, 'weapons-list')[0];
+    expect(weapon.encodedValue).toBe('weapon|w1');
+    expect(weapon.cssClass).toBe('');
+    expect(weapon.tooltip).toContain('sr4.hud.weapons.equipHint');
   });
 
   it('marks an equipped melee weapon with the active css class', async () => {
@@ -379,25 +386,37 @@ describe('weapons', () => {
     const actor = makeActor({ items });
     const handler = await build(actor);
 
-    const equip = actionsFor(handler, 'weapons-list').find(a => a.id === 'equip-w1');
-    expect(equip.cssClass).toBe('active');
-    expect(equip.name).toBe('✦ Knife');
-    expect(equip.img).toBe('icons/svg/sword.svg');
+    const weapon = actionsFor(handler, 'weapons-list')[0];
+    expect(weapon.cssClass).toBe('active');
   });
 
-  it('does not add an equip toggle for a ranged weapon', async () => {
+  it('does not list armor items in the weapons tab', async () => {
     const items = [
-      { id: 'w1', type: 'Ranged Weapon', name: 'Pistol', img: null,
-        system: { damage: 8, ap: -4, maxAmmo: 0, equipped: false } },
+      { id: 'w1', type: 'Melee Weapon', name: 'Knife', img: null, system: { damage: 4, ap: 0, equipped: false } },
+      { id: 'a1', type: 'Armor', name: 'Jacket', img: null, system: { equipped: true } },
     ];
     const actor = makeActor({ items });
     const handler = await build(actor);
 
     const actions = actionsFor(handler, 'weapons-list');
-    expect(actions.find(a => a.id === 'equip-w1')).toBeUndefined();
+    expect(actions.map(a => a.id)).toEqual(['w1']);
   });
 
-  it('appends an equip toggle for each armor item', async () => {
+  it('does not call addActions for weapons-list when no weapons exist', async () => {
+    const actor = makeActor({ items: [] });
+    const handler = await build(actor);
+
+    const calledGroups = handler.addActions.mock.calls.map(([, g]) => g.id);
+    expect(calledGroups).not.toContain('weapons-list');
+  });
+});
+
+// -----------------------------------------------------------------------
+// Armor (equip toggles in the soak group)
+// -----------------------------------------------------------------------
+
+describe('armor', () => {
+  it('appends an equip toggle for each armor item to the soak group', async () => {
     const items = [
       { id: 'a1', type: 'Armor', name: 'Jacket', img: null, system: { equipped: true } },
       { id: 'a2', type: 'Armor', name: 'Vest',   img: null, system: { equipped: false } },
@@ -405,8 +424,8 @@ describe('weapons', () => {
     const actor = makeActor({ items });
     const handler = await build(actor);
 
-    const actions = actionsFor(handler, 'weapons-list');
-    const equipped = actions.find(a => a.id === 'equip-a1');
+    const actions = actionsFor(handler, 'basics-soak');
+    const equipped   = actions.find(a => a.id === 'equip-a1');
     const unequipped = actions.find(a => a.id === 'equip-a2');
 
     expect(equipped.encodedValue).toBe('equip|a1');
@@ -415,16 +434,14 @@ describe('weapons', () => {
     expect(unequipped.cssClass).toBe('');
   });
 
-  it('does not call addActions for armor when no armor items exist', async () => {
-    const items = [
-      { id: 'w1', type: 'Melee Weapon', name: 'Knife', img: null, system: { damage: 4, ap: 0, equipped: false } },
-    ];
-    const actor = makeActor({ items });
+  it('keeps the soak group intact when no armor items exist', async () => {
+    const actor = makeActor({ items: [] });
     const handler = await build(actor);
 
-    // weapons-list is added exactly once (the weapons call); no extra armor call
-    const weaponListCalls = handler.addActions.mock.calls.filter(([, g]) => g.id === 'weapons-list');
-    expect(weaponListCalls).toHaveLength(1);
+    const actions = actionsFor(handler, 'basics-soak');
+    expect(actions.map(a => a.id)).toEqual([
+      'soak-willpower', 'soak-body', 'soak-body-impact', 'soak-body-ballistic',
+    ]);
   });
 });
 
@@ -459,6 +476,71 @@ describe('basics-tests', () => {
 
     const liftCarry = actionsFor(handler, 'basics-tests').find(a => a.id === 'test-liftCarry');
     expect(liftCarry.name).toContain('(10)');
+  });
+});
+
+// -----------------------------------------------------------------------
+// Basics: initiative realm switch
+// -----------------------------------------------------------------------
+
+describe('basics-realm', () => {
+  it('is omitted when only one realm is available', async () => {
+    game.sr4.initiative.getAvailableRealms.mockReturnValueOnce(['physical']);
+    const handler = await build(makeActor());
+
+    const calledGroups = handler.addActions.mock.calls.map(([, g]) => g.id);
+    expect(calledGroups).not.toContain('basics-realm');
+  });
+
+  it('builds one action per available realm with the current one active', async () => {
+    game.sr4.initiative.getAvailableRealms.mockReturnValueOnce([
+      'physical', 'matrix',
+    ]);
+    const actor = makeActor();
+    actor.system.realm = 'matrix';
+    const handler = await build(actor);
+
+    const actions = actionsFor(handler, 'basics-realm');
+    expect(actions.map(a => a.id)).toEqual(['realm-physical', 'realm-matrix']);
+    expect(actions.map(a => a.encodedValue)).toEqual([
+      'realm|physical', 'realm|matrix',
+    ]);
+    expect(actions.find(a => a.id === 'realm-matrix').cssClass).toBe('active');
+    expect(actions.find(a => a.id === 'realm-physical').cssClass).toBe('');
+  });
+
+  it('prefers the combatant realm over the actor default while in combat', async () => {
+    game.sr4.initiative.getAvailableRealms.mockReturnValueOnce([
+      'physical', 'matrix', 'astral',
+    ]);
+    game.sr4.initiative.getCombatantRealm.mockReturnValueOnce('astral');
+    const actor = makeActor();
+    actor.id = 'a1';
+    actor.system.realm = 'physical';
+    game.combat = {
+      combatants: { find: (fn) => [{ actor: { id: 'a1' } }].find(fn) },
+    };
+
+    try {
+      const handler = await build(actor);
+      const actions = actionsFor(handler, 'basics-realm');
+      expect(actions.find(a => a.id === 'realm-astral').cssClass).toBe('active');
+    } finally {
+      game.combat = null;
+    }
+  });
+
+  it('is omitted when the system initiative API is unavailable', async () => {
+    const initiative = game.sr4.initiative;
+    delete game.sr4.initiative;
+
+    try {
+      const handler = await build(makeActor());
+      const calledGroups = handler.addActions.mock.calls.map(([, g]) => g.id);
+      expect(calledGroups).not.toContain('basics-realm');
+    } finally {
+      game.sr4.initiative = initiative;
+    }
   });
 });
 

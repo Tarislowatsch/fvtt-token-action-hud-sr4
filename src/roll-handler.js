@@ -14,6 +14,8 @@ export function createRollHandler(coreModule) {
       const actor = this.actor;
 
       if (event.ctrlKey && type === 'effectToggle') return this.#deleteEffect(actor, id);
+      if (event.ctrlKey && type === 'weapon')       return this.#toggleEquip(actor, id);
+      if (event.shiftKey && type === 'weapon')      return this.#weaponReloadShortcut(actor, id);
 
       switch (type) {
         case 'skill':          return this.#rollSkill(actor, id);
@@ -29,13 +31,13 @@ export function createRollHandler(coreModule) {
         case 'attrTest':       return this.#rollAttrTest(actor, id);
         case 'autosoft':       return this.#rollAutosoft(actor, id);
         case 'controlMode':    return this.#setControlMode(actor, id);
+        case 'realm':          return this.#setRealm(actor, id);
         case 'droneAction':    return game.sr4.rigging?.openDroneRollDialog?.(actor, id);
         case 'effectToggle':      return this.#toggleEffect(actor, id);
         case 'effectTemplate':    return this.#applyTemplate(actor, id);
         case 'itemEffectToggle':  return this.#toggleItemEffect(actor, id);
         case 'itemSheet':         return this.#openItemSheet(actor, id);
         case 'equip':             return this.#toggleEquip(actor, id);
-        case 'reload':            return this.#reloadWeapon(actor, id);
         case 'summon':            return this.#summon(actor, id);
         case 'threading':        return this.#threadComplexForm(actor);
       }
@@ -62,6 +64,17 @@ export function createRollHandler(coreModule) {
       if (skill) this.#dialog.handleSkillRoll(actor, skill.name);
     }
 
+    /** Shift+Click on a weapon: ranged with an ammo store reloads, everything else rolls. */
+    async #weaponReloadShortcut(actor, weaponId) {
+      const weapon = actor.items.get(weaponId);
+      if (!weapon) return;
+
+      if (weapon.type === 'Ranged Weapon' && weapon.system.maxAmmo > 0) {
+        return this.#reloadWeapon(actor, weaponId);
+      }
+      return this.#rollWeapon(actor, weaponId);
+    }
+
     async #rollWeapon(actor, weaponId) {
       const weapon = actor.items.get(weaponId);
       if (!weapon) return;
@@ -78,6 +91,23 @@ export function createRollHandler(coreModule) {
 
     async #setControlMode(actor, mode) {
       await actor.update({ 'system.controlMode': mode });
+      this.#updateHud();
+    }
+
+    async #setRealm(actor, realm) {
+      const combatant = game.combat?.combatants.find(
+        c => (this.token && c.tokenId === this.token.id) || c.actor?.id === actor.id
+      );
+
+      if (combatant) {
+        await combatant.setFlag('shadowrun4e', 'realm', realm);
+        if (combatant.initiative !== null) {
+          await combatant.combat.rollInitiative([combatant.id]);
+        }
+      } else {
+        await actor.update({ 'system.realm': realm });
+      }
+
       this.#updateHud();
     }
 

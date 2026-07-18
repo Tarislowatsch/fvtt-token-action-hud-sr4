@@ -37,6 +37,10 @@
         "tab": "Sonstiges"
       },
       "rating": "Stufe",
+      "realm": {
+        "tab": "Initiative-Modus",
+        "tooltip": "Klicke, um die Initiative-Ebene zu wechseln (würfelt im Kampf neu)"
+      },
       "specialization": "Spez.",
       "skills": {
         "combat": "Kampf",
@@ -97,7 +101,9 @@
       },
       "weapons": {
         "tab": "Waffen",
-        "equip": "Ausrüsten umschalten"
+        "equip": "Ausrüsten umschalten",
+        "equipHint": "Strg+Klick zum An-/Ablegen",
+        "reloadHint": "Shift+Klick zum Nachladen"
       },
       "powers": {
         "tab": "Kräfte",

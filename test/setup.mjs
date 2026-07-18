@@ -19,7 +19,13 @@ vi.stubGlobal('game', {
       openDroneRollDialog: vi.fn(),
       openDroneAttackDialog: vi.fn(),
     },
+    initiative: {
+      REALMS: ['physical', 'matrix', 'astral'],
+      getAvailableRealms: vi.fn().mockReturnValue(['physical']),
+      getCombatantRealm: vi.fn().mockReturnValue('physical'),
+    },
   },
+  combat: null,
   tokenActionHud: { update: vi.fn() },
 });
 

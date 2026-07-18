@@ -71,6 +71,67 @@ describe('edge|reset', () => {
 });
 
 // -----------------------------------------------------------------------
+// Initiative realm switch
+// -----------------------------------------------------------------------
+
+describe('realm|<realm>', () => {
+  it('updates the actor default realm outside of combat', async () => {
+    const actor = makeActor();
+    await makeHandler(actor).handleActionClick({}, 'realm|matrix');
+    expect(actor.update).toHaveBeenCalledWith({ 'system.realm': 'matrix' });
+  });
+
+  it('sets the combatant flag and rerolls a rolled initiative in combat', async () => {
+    const actor = makeActor();
+    actor.id = 'a1';
+    const rollInitiative = vi.fn().mockResolvedValue(undefined);
+    const combatant = {
+      id: 'c1',
+      actor: { id: 'a1' },
+      initiative: 12,
+      setFlag: vi.fn().mockResolvedValue(undefined),
+      combat: { rollInitiative },
+    };
+    game.combat = {
+      combatants: { find: (fn) => [combatant].find(fn) },
+    };
+
+    try {
+      await makeHandler(actor).handleActionClick({}, 'realm|astral');
+      expect(combatant.setFlag).toHaveBeenCalledWith('shadowrun4e', 'realm', 'astral');
+      expect(rollInitiative).toHaveBeenCalledWith(['c1']);
+      expect(actor.update).not.toHaveBeenCalled();
+    } finally {
+      game.combat = null;
+    }
+  });
+
+  it('does not reroll when the combatant has no initiative yet', async () => {
+    const actor = makeActor();
+    actor.id = 'a1';
+    const rollInitiative = vi.fn();
+    const combatant = {
+      id: 'c1',
+      actor: { id: 'a1' },
+      initiative: null,
+      setFlag: vi.fn().mockResolvedValue(undefined),
+      combat: { rollInitiative },
+    };
+    game.combat = {
+      combatants: { find: (fn) => [combatant].find(fn) },
+    };
+
+    try {
+      await makeHandler(actor).handleActionClick({}, 'realm|matrix');
+      expect(combatant.setFlag).toHaveBeenCalledWith('shadowrun4e', 'realm', 'matrix');
+      expect(rollInitiative).not.toHaveBeenCalled();
+    } finally {
+      game.combat = null;
+    }
+  });
+});
+
+// -----------------------------------------------------------------------
 // Soak
 // -----------------------------------------------------------------------
 
@@ -151,20 +212,85 @@ describe('attrTest', () => {
 });
 
 // -----------------------------------------------------------------------
-// Weapon reload
+// Weapon Ctrl+Click shortcuts
 // -----------------------------------------------------------------------
 
-describe('reload', () => {
-  it('calls game.sr4.reloadWeapon with actor and weapon id', async () => {
+describe('weapon shortcuts', () => {
+  function makeActorWithWeapon(weapon) {
     const actor = makeActor();
-    await makeHandler(actor).handleActionClick({}, 'reload|w1');
-    expect(game.sr4.reloadWeapon).toHaveBeenCalledWith(actor, 'w1');
+    actor.type = 'character';
+    actor.items.get = vi.fn(id => id === weapon.id ? weapon : undefined);
+    return actor;
+  }
+
+  it('Ctrl+Click toggles equip for a melee weapon', async () => {
+    const weapon = { id: 'w1', type: 'Melee Weapon', system: { equipped: false }, update: vi.fn().mockResolvedValue(undefined) };
+    const actor = makeActorWithWeapon(weapon);
+
+    await makeHandler(actor).handleActionClick({ ctrlKey: true }, 'weapon|w1');
+
+    expect(weapon.update).toHaveBeenCalledWith({ 'system.equipped': true });
+    expect(game.sr4.dialogUtility.handleAttackRoll).not.toHaveBeenCalled();
   });
 
-  it('triggers tokenActionHud update after reload', async () => {
-    const actor = makeActor();
-    await makeHandler(actor).handleActionClick({}, 'reload|w1');
+  it('Ctrl+Click toggles equip for a ranged weapon', async () => {
+    const weapon = { id: 'w1', type: 'Ranged Weapon', system: { equipped: true, maxAmmo: 15, currentAmmo: 3 }, update: vi.fn().mockResolvedValue(undefined) };
+    const actor = makeActorWithWeapon(weapon);
+
+    await makeHandler(actor).handleActionClick({ ctrlKey: true }, 'weapon|w1');
+
+    expect(weapon.update).toHaveBeenCalledWith({ 'system.equipped': false });
+    expect(game.sr4.reloadWeapon).not.toHaveBeenCalled();
+  });
+
+  it('Shift+Click reloads a ranged weapon with maxAmmo > 0', async () => {
+    const weapon = { id: 'w1', type: 'Ranged Weapon', system: { maxAmmo: 15, currentAmmo: 3 } };
+    const actor = makeActorWithWeapon(weapon);
+
+    await makeHandler(actor).handleActionClick({ shiftKey: true }, 'weapon|w1');
+
+    expect(game.sr4.reloadWeapon).toHaveBeenCalledWith(actor, 'w1');
     expect(game.tokenActionHud.update).toHaveBeenCalled();
+    expect(game.sr4.dialogUtility.handleAttackRoll).not.toHaveBeenCalled();
+  });
+
+  it('Shift+Click falls back to a normal roll for a ranged weapon without ammo store', async () => {
+    const weapon = { id: 'w1', type: 'Ranged Weapon', system: { maxAmmo: 0, attackSkill: 'pistols' } };
+    const actor = makeActorWithWeapon(weapon);
+    actor.findByAttackSkill = vi.fn(() => ({ name: 'Pistols' }));
+
+    await makeHandler(actor).handleActionClick({ shiftKey: true }, 'weapon|w1');
+
+    expect(game.sr4.reloadWeapon).not.toHaveBeenCalled();
+    expect(game.sr4.dialogUtility.handleAttackRoll).toHaveBeenCalledWith(actor, 'Pistols', weapon);
+  });
+
+  it('Shift+Click falls back to a normal roll for a melee weapon', async () => {
+    const weapon = { id: 'w1', type: 'Melee Weapon', system: { attackSkill: 'blades' } };
+    const actor = makeActorWithWeapon(weapon);
+    actor.findByAttackSkill = vi.fn(() => ({ name: 'Blades' }));
+
+    await makeHandler(actor).handleActionClick({ shiftKey: true }, 'weapon|w1');
+
+    expect(game.sr4.reloadWeapon).not.toHaveBeenCalled();
+    expect(game.sr4.dialogUtility.handleAttackRoll).toHaveBeenCalledWith(actor, 'Blades', weapon);
+  });
+
+  it('does nothing when the weapon is not found', async () => {
+    const actor = makeActor();
+    actor.items.get = vi.fn(() => undefined);
+    await expect(makeHandler(actor).handleActionClick({ shiftKey: true }, 'weapon|missing')).resolves.toBeUndefined();
+  });
+
+  it('rolls normally without modifier keys', async () => {
+    const weapon = { id: 'w1', type: 'Ranged Weapon', system: { maxAmmo: 15, currentAmmo: 3, attackSkill: 'pistols' } };
+    const actor = makeActorWithWeapon(weapon);
+    actor.findByAttackSkill = vi.fn(() => ({ name: 'Pistols' }));
+
+    await makeHandler(actor).handleActionClick({}, 'weapon|w1');
+
+    expect(game.sr4.reloadWeapon).not.toHaveBeenCalled();
+    expect(game.sr4.dialogUtility.handleAttackRoll).toHaveBeenCalledWith(actor, 'Pistols', weapon);
   });
 });
 

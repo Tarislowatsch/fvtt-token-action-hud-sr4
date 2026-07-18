@@ -37,6 +37,10 @@
         "tab": "Misc."
       },
       "rating": "Rating",
+      "realm": {
+        "tab": "Initiative Mode",
+        "tooltip": "Click to switch the initiative realm (rerolls in combat)"
+      },
       "specialization": "Spec.",
       "skills": {
         "combat": "Combat",
@@ -97,7 +101,9 @@
       },
       "weapons": {
         "tab": "Weapons",
-        "equip": "Toggle equip"
+        "equip": "Toggle equip",
+        "equipHint": "Ctrl+Click to equip/unequip",
+        "reloadHint": "Shift+Click to reload"
       },
       "powers": {
         "tab": "Powers",

@@ -66,6 +66,7 @@ function createSystemManager(coreModule) {
           ...layoutGroup('basics', 'basics', 'sr4.hud.basics'),
           groups: [
             layoutGroup('basics_basics-improvise',       'basics-improvise',       'sr4.hud.improvise'),
+            layoutGroup('basics_basics-realm',           'basics-realm',           'sr4.hud.realm.tab'),
             layoutGroup('basics_basics-edge-rolls',      'basics-edge-rolls',      'sr4.hud.edge.tab'),
             layoutGroup('basics_basics-free-roll',       'basics-free-roll',       'sr4.hud.freeRoll'),
             layoutGroup('basics_basics-edge-management', 'basics-edge-management', 'sr4.hud.edge.management'),
