@@ -32,14 +32,6 @@ const REALM_ICONS = {
   astral:   'icons/svg/eye.svg',
 };
 
-const EFFECT_TEMPLATES = [
-  { key: 'sustain',        icon: 'aura.svg' },
-  { key: 'disoriented',    icon: 'stoned.svg' },
-  { key: 'blind',          icon: 'blind.svg' },
-  { key: 'blindFlareComp', icon: 'blind.svg' },
-  { key: 'knockedDown',    icon: 'falling.svg' },
-];
-
 export function createActionHandler(coreModule) {
   return class SR4ActionHandler extends coreModule.api.ActionHandler {
 
@@ -672,16 +664,14 @@ export function createActionHandler(coreModule) {
     // -----------------------------------------------------------------------
 
     #buildEffects(actor) {
-      const templateActions = EFFECT_TEMPLATES.map(({ key, icon }) => {
-        const locKey = `add${key[0].toUpperCase()}${key.slice(1)}`;
-        return {
-          id:           `effect-${key}-add`,
-          name:         loc(`sr4.hud.effects.${locKey}`),
-          img:          `icons/svg/${icon}`,
-          encodedValue: `effectTemplate|${key}`,
-          tooltip:      loc(`sr4.hud.effects.${locKey}Tooltip`),
-        };
-      });
+      const templates = game.sr4?.effects?.getAllEffectTemplates?.() ?? [];
+      const templateActions = templates.map(({ key, name, img, changes, duration }) => ({
+        id:           `effect-${key}-add`,
+        name,
+        img:          img ?? 'icons/svg/aura.svg',
+        encodedValue: `effectTemplate|${key}`,
+        tooltip:      this.#effectTooltip({ name, changes, duration }, loc('sr4.hud.effects.applyHint')),
+      }));
       this.#addToGroup(templateActions, 'effects', 'effects-templates');
 
       const effectActions = actor.effects.contents.map(effect => ({
@@ -690,19 +680,33 @@ export function createActionHandler(coreModule) {
         img:          effect.icon ?? 'icons/svg/aura.svg',
         encodedValue: `effectToggle|${effect.id}`,
         cssClass:     effect.disabled ? '' : 'active',
-        tooltip:      this.#effectTooltip(effect),
+        tooltip:      this.#effectTooltip(effect, loc('sr4.hud.effects.deleteHint')),
       }));
 
       if (!effectActions.length) return;
       this.#addToGroup(effectActions, 'effects', 'effects-active');
     }
 
-    #effectTooltip(effect) {
-      const change = effect.changes[0];
-      const hint = loc('sr4.hud.effects.deleteHint');
-      if (!change) return `${effect.name}\n${hint}`;
-      const sign = Number(change.value) > 0 ? '+' : '';
-      return `${effect.name} · ${sign}${change.value}\n${hint}`;
+    #changeSummary(changes) {
+      return (changes ?? [])
+        .map(({ value }) => {
+          const num = Number(value);
+          return Number.isFinite(num) ? `${num > 0 ? '+' : ''}${num}` : `${value}`;
+        })
+        .join(', ');
+    }
+
+    #durationSummary(duration) {
+      const turns = duration?.turns;
+      if (!turns) return '';
+      const unit = turns === 1 ? loc('sr4.hud.effects.turn') : loc('sr4.hud.effects.turns');
+      return ` (${turns} ${unit})`;
+    }
+
+    #effectTooltip({ name, changes, duration }, hint) {
+      const summary = this.#changeSummary(changes);
+      const stats = summary ? ` · ${summary}${this.#durationSummary(duration)}` : '';
+      return `${name}${stats}\n${hint}`;
     }
   };
 }

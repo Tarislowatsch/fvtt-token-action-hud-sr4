@@ -132,18 +132,11 @@
         "tab": "Effects",
         "templates": "Quick Effects",
         "active": "Active Effects",
-        "addSustain": "Sustain Spell",
-        "addSustainTooltip": "Apply -2 sustain penalty (stackable)",
-        "addDisoriented": "Disoriented (Electricity)",
-        "addDisorientedTooltip": "Apply -2 disorientation penalty",
-        "addBlind": "Blinded",
-        "addBlindTooltip": "Apply -4 attack penalty (1 turn)",
-        "addBlindFlareComp": "Blinded (Flare Comp.)",
-        "addBlindFlareCompTooltip": "Apply -2 attack penalty with flare compensation (1 turn)",
-        "addKnockedDown": "Knocked Down",
-        "addKnockedDownTooltip": "Apply -2 general penalty (persistent)",
+        "applyHint": "Click to apply",
         "deleteHint": "Ctrl+Click to remove",
-        "toggleHint": "Click to toggle"
+        "toggleHint": "Click to toggle",
+        "turn": "turn",
+        "turns": "turns"
       }
     }
   }

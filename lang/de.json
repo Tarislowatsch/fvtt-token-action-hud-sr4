@@ -132,18 +132,11 @@
         "tab": "Effekte",
         "templates": "Statuseffekte",
         "active": "Aktive Effekte",
-        "addSustain": "Zauber aufrechterhalten",
-        "addSustainTooltip": "-2 Würfelpool-Malus hinzufügen (stapelbar)",
-        "addDisoriented": "Desorientiert (Elektrizität)",
-        "addDisorientedTooltip": "-2 Desorientierungsstrafe hinzufügen",
-        "addBlind": "Geblendet",
-        "addBlindTooltip": "-4 Angriffswürfel-Malus hinzufügen (1 Runde)",
-        "addBlindFlareComp": "Geblendet (Blendschutz)",
-        "addBlindFlareCompTooltip": "-2 Angriffswürfel-Malus hinzufügen mit Blendschutz (1 Runde)",
-        "addKnockedDown": "Niedergeworfen",
-        "addKnockedDownTooltip": "-2 allgemeine Malus hinzufügen (dauerhaft)",
+        "applyHint": "Klick zum Anwenden",
         "deleteHint": "Strg+Klick zum Entfernen",
-        "toggleHint": "Klick zum Umschalten"
+        "toggleHint": "Klick zum Umschalten",
+        "turn": "Runde",
+        "turns": "Runden"
       }
     }
   }
