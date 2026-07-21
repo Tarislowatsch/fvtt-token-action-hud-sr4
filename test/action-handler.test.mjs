@@ -184,6 +184,30 @@ describe('spell tooltip', () => {
 });
 
 // -----------------------------------------------------------------------
+// Magic summoning (Summon/Banish/Bind)
+// -----------------------------------------------------------------------
+
+describe('magic summoning', () => {
+  it('includes summon, banish and bind buttons for magicians', async () => {
+    const actor = makeActor({ attrs: { MAGIC: 5 } });
+    const handler = await build(actor);
+
+    const actions = actionsFor(handler, 'magic-summoning');
+    expect(actions.map(a => a.encodedValue)).toEqual([
+      'summon|spirit', 'summon|watcher', 'banish|spirit', 'bind|spirit',
+    ]);
+  });
+
+  it('does not appear in HUD when MAGIC attribute is 0', async () => {
+    const actor = makeActor({ attrs: { MAGIC: 0 } });
+    const handler = await build(actor);
+
+    const calledGroups = handler.addActions.mock.calls.map(([, g]) => g.id);
+    expect(calledGroups).not.toContain('magic-summoning');
+  });
+});
+
+// -----------------------------------------------------------------------
 // Matrix
 // -----------------------------------------------------------------------
 
@@ -219,7 +243,9 @@ describe('matrix', () => {
     const handler = await build(actor);
 
     const actions = actionsFor(handler, 'matrix-resonance');
-    expect(actions.map(a => a.encodedValue)).toEqual(['summon|sprite', 'threading|thread']);
+    expect(actions.map(a => a.encodedValue)).toEqual([
+      'summon|sprite', 'threading|thread', 'decompile|sprite', 'bind|sprite',
+    ]);
   });
 
   it('hides resonance actions for non-technomancers', async () => {
@@ -228,6 +254,28 @@ describe('matrix', () => {
 
     const calledGroups = handler.addActions.mock.calls.map(([, g]) => g.id);
     expect(calledGroups).not.toContain('matrix-resonance');
+  });
+
+  it('mirrors MATRIX-categorised Action items into matrix-category-actions, even for non-technomancers', async () => {
+    const items = [
+      { id: 'a1', type: 'Action', name: 'Data Search', img: null, system: { actionType: 'complex', category: 'MATRIX' } },
+      { id: 'a2', type: 'Action', name: 'Sprint',      img: null, system: { actionType: 'simple' } },
+    ];
+    const actor = makeActor({ items, technomancer: false });
+    const handler = await build(actor);
+
+    const actions = actionsFor(handler, 'matrix-category-actions');
+    expect(actions).toHaveLength(1);
+    expect(actions[0].id).toBe('a1');
+    expect(actions[0].encodedValue).toBe('action|a1');
+  });
+
+  it('does not call addActions for matrix-category-actions when no MATRIX actions exist', async () => {
+    const actor = makeActor();
+    const handler = await build(actor);
+
+    const calledGroups = handler.addActions.mock.calls.map(([, g]) => g.id);
+    expect(calledGroups).not.toContain('matrix-category-actions');
   });
 });
 
@@ -649,6 +697,27 @@ describe('actions', () => {
     const actions = actionsFor(handler, 'actions-list');
     expect(actions).toHaveLength(1);
     expect(actions[0].id).toBe('a1');
+  });
+
+  it('splits MATRIX-categorised actions into actions-category-matrix, leaving uncategorised ones in actions-list', async () => {
+    const items = [
+      { id: 'a1', type: 'Action', name: 'Sprint',      img: null, system: { actionType: 'simple' } },
+      { id: 'a2', type: 'Action', name: 'Data Search', img: null, system: { actionType: 'complex', category: 'MATRIX' } },
+    ];
+    const actor = makeActor({ items });
+    const handler = await build(actor);
+
+    expect(actionsFor(handler, 'actions-list').map(a => a.id)).toEqual(['a1']);
+    expect(actionsFor(handler, 'actions-category-matrix').map(a => a.id)).toEqual(['a2']);
+  });
+
+  it('does not call addActions for actions-category-matrix when no MATRIX actions exist', async () => {
+    const items = [{ id: 'a1', type: 'Action', name: 'Sprint', img: null, system: { actionType: 'simple' } }];
+    const actor = makeActor({ items });
+    const handler = await build(actor);
+
+    const calledGroups = handler.addActions.mock.calls.map(([, g]) => g.id);
+    expect(calledGroups).not.toContain('actions-category-matrix');
   });
 });
 

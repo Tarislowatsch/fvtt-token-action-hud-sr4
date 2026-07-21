@@ -3,7 +3,11 @@
     "hud": {
       "activeSkills": "Aktive Fertigkeiten",
       "actions": {
-        "tab": "Aktionen"
+        "tab": "Aktionen",
+        "categories": {
+          "matrix": "Matrix",
+          "rigging": "Rigging"
+        }
       },
       "basics": "Basics",
       "edge": {
@@ -82,6 +86,10 @@
         "summonSpiritTooltip": "Beschwörungsdialog öffnen",
         "summonWatcher": "Wächter beschwören",
         "summonWatcherTooltip": "Einen Wächtergeist beschwören",
+        "banishSpirit": "Geist bannen",
+        "banishSpiritTooltip": "Einen anvisierten Geist bannen",
+        "bindSpirit": "Geist binden",
+        "bindSpiritTooltip": "Einen anvisierten, beschworenen Geist binden",
         "summoning": "Beschwörung"
       },
       "spells": {
@@ -92,11 +100,16 @@
       "matrix": {
         "tab": "Matrix",
         "actions": "Programm-Aktionen",
+        "categoryActions": "Matrix-Aktionen",
         "effects": "Programm-Effekte",
         "compileSprite": "Sprite kompilieren",
         "compileSpriteTooltip": "Kompilierungsdialog öffnen",
         "threadComplexForm": "Komplexe Form wirken",
         "threadComplexFormTooltip": "Software + Resonanz würfeln",
+        "decompileSprite": "Sprite dekompilieren",
+        "decompileSpriteTooltip": "Einen anvisierten Sprite dekompilieren",
+        "bindSprite": "Sprite registrieren",
+        "bindSpriteTooltip": "Einen anvisierten, kompilierten Sprite registrieren",
         "resonanceActions": "Resonanz"
       },
       "weapons": {

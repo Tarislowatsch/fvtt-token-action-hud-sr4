@@ -3,7 +3,7 @@
  */
 
 import { loc, collectArmor } from './system-manager.js';
-import { ATTRIBUTE_TESTS } from './constants.js';
+import { ATTRIBUTE_TESTS, ACTION_CATEGORIES } from './constants.js';
 
 export function createRollHandler(coreModule) {
   return class SR4RollHandler extends coreModule.api.RollHandler {
@@ -40,6 +40,9 @@ export function createRollHandler(coreModule) {
         case 'equip':             return this.#toggleEquip(actor, id);
         case 'summon':            return this.#summon(actor, id);
         case 'threading':        return this.#threadComplexForm(actor);
+        case 'banish':            return this.#banishSpirit(actor);
+        case 'decompile':         return this.#decompileSprite(actor);
+        case 'bind':              return this.#bind(actor, id);
       }
     }
 
@@ -208,6 +211,13 @@ export function createRollHandler(coreModule) {
       if (!action) return;
 
       const numDice = (action.system.rating1 ?? 0) + (action.system.rating2 ?? 0);
+      const category = action.system.category;
+      const categories = Object.values(game.sr4?.ActionCategory ?? {});
+      const isCategorised = (categories.length ? categories : ACTION_CATEGORIES).includes(category);
+
+      if (isCategorised && this.#dialog.openMatrixActionDialog) {
+        return this.#dialog.openMatrixActionDialog(actor, action.name, numDice, category);
+      }
       this.#dialog.openActionDialog(actor, action.name, numDice);
     }
 
@@ -296,6 +306,21 @@ export function createRollHandler(coreModule) {
 
     async #threadComplexForm(actor) {
       await game.sr4.ThreadingFlow.start(actor);
+      this.#updateHud();
+    }
+
+    async #banishSpirit(actor) {
+      await game.sr4.DismissalFlow.start(actor, 'spirit');
+      this.#updateHud();
+    }
+
+    async #decompileSprite(actor) {
+      await game.sr4.DismissalFlow.start(actor, 'sprite');
+      this.#updateHud();
+    }
+
+    async #bind(actor, entityType) {
+      await game.sr4.BindingFlow.startTargeted(actor, entityType);
       this.#updateHud();
     }
   };

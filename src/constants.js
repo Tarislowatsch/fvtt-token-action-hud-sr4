@@ -56,3 +56,6 @@ export const ATTRIBUTE_TESTS = [
   { key: 'memory',          attr1: 'LOGIC',      attr2: 'WILLPOWER' },
   { key: 'liftCarry',       attr1: 'STRENGTH',   attr2: 'BODY' },
 ];
+
+/** Action-item category tags (system.category on 'Action' items); fallback when game.sr4.ActionCategory is unavailable. */
+export const ACTION_CATEGORIES = ['MATRIX', 'RIGGING'];

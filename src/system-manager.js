@@ -7,6 +7,7 @@ import {
   ACTIVE_SKILL_CATEGORIES,
   KNOWLEDGE_SKILL_CATEGORIES,
   SPELL_CATEGORIES,
+  ACTION_CATEGORIES,
 } from './constants.js';
 import { createActionHandler } from './action-handler.js';
 import { createRollHandler }   from './roll-handler.js';
@@ -106,10 +107,11 @@ function createSystemManager(coreModule) {
         {
           ...layoutGroup('matrix', 'matrix', 'sr4.hud.matrix.tab'),
           groups: [
-            layoutGroup('matrix_matrix-list',      'matrix-list',      'sr4.hud.matrix.tab'),
-            layoutGroup('matrix_matrix-actions',    'matrix-actions',   'sr4.hud.matrix.actions'),
-            layoutGroup('matrix_matrix-effects',    'matrix-effects',   'sr4.hud.matrix.effects'),
-            layoutGroup('matrix_matrix-resonance',  'matrix-resonance', 'sr4.hud.matrix.resonanceActions'),
+            layoutGroup('matrix_matrix-list',            'matrix-list',            'sr4.hud.matrix.tab'),
+            layoutGroup('matrix_matrix-actions',          'matrix-actions',         'sr4.hud.matrix.actions'),
+            layoutGroup('matrix_matrix-category-actions', 'matrix-category-actions','sr4.hud.matrix.categoryActions'),
+            layoutGroup('matrix_matrix-effects',          'matrix-effects',         'sr4.hud.matrix.effects'),
+            layoutGroup('matrix_matrix-resonance',        'matrix-resonance',       'sr4.hud.matrix.resonanceActions'),
           ],
         },
         {
@@ -118,7 +120,12 @@ function createSystemManager(coreModule) {
         },
         {
           ...layoutGroup('actions', 'actions', 'sr4.hud.actions.tab'),
-          groups: [ layoutGroup('actions_actions-list', 'actions-list', 'sr4.hud.actions.tab') ],
+          groups: [
+            layoutGroup('actions_actions-list', 'actions-list', 'sr4.hud.actions.tab'),
+            ...ACTION_CATEGORIES.map(cat =>
+              layoutGroup(`actions_actions-category-${cat.toLowerCase()}`, `actions-category-${cat.toLowerCase()}`, `sr4.hud.actions.categories.${cat.toLowerCase()}`)
+            ),
+          ],
         },
         ...ITEM_TABS.map(t => ({
           ...layoutGroup(t, t, `sr4.hud.${t}.tab`),

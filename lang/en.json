@@ -3,7 +3,11 @@
     "hud": {
       "activeSkills": "Active Skills",
       "actions": {
-        "tab": "Actions"
+        "tab": "Actions",
+        "categories": {
+          "matrix": "Matrix",
+          "rigging": "Rigging"
+        }
       },
       "basics": "Basics",
       "edge": {
@@ -82,6 +86,10 @@
         "summonSpiritTooltip": "Open Summoning dialog",
         "summonWatcher": "Summon Watcher",
         "summonWatcherTooltip": "Summon a watcher spirit",
+        "banishSpirit": "Banish Spirit",
+        "banishSpiritTooltip": "Banish a targeted spirit",
+        "bindSpirit": "Bind Spirit",
+        "bindSpiritTooltip": "Bind a targeted spirit you have summoned",
         "summoning": "Summoning"
       },
       "spells": {
@@ -92,11 +100,16 @@
       "matrix": {
         "tab": "Matrix",
         "actions": "Program Actions",
+        "categoryActions": "Matrix Actions",
         "effects": "Program Effects",
         "compileSprite": "Compile Sprite",
         "compileSpriteTooltip": "Open Compiling dialog",
         "threadComplexForm": "Thread Complex Form",
         "threadComplexFormTooltip": "Roll Software + Resonance",
+        "decompileSprite": "Decompile Sprite",
+        "decompileSpriteTooltip": "Decompile a targeted sprite",
+        "bindSprite": "Register Sprite",
+        "bindSpriteTooltip": "Register a targeted sprite you have compiled",
         "resonanceActions": "Resonance"
       },
       "weapons": {

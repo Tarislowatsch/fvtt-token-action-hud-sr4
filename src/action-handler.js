@@ -11,6 +11,7 @@ import {
   ATTRIBUTE_TESTS,
   CONTROL_MODES,
   DRONE_ACTIONS,
+  ACTION_CATEGORIES,
 } from './constants.js';
 
 const CONTROL_MODE_ICONS = {
@@ -107,6 +108,26 @@ export function createActionHandler(coreModule) {
 
         this.#addToGroup(actions, parentId, groupIdFor(category));
       }
+    }
+
+    /** Action-item category tags, preferring the system API over the static fallback list. */
+    #actionCategories() {
+      const api = Object.values(game.sr4?.ActionCategory ?? {});
+      return api.length ? api : ACTION_CATEGORIES;
+    }
+
+    #matrixCategoryValue() {
+      return game.sr4?.ActionCategory?.MATRIX ?? 'MATRIX';
+    }
+
+    #actionButton(a) {
+      return {
+        id:           a.id,
+        name:         a.name,
+        img:          a.img,
+        encodedValue: `action|${a.id}`,
+        tooltip:      `${a.name} · ${a.system.actionType ?? ''}`,
+      };
     }
 
     // -----------------------------------------------------------------------
@@ -514,6 +535,20 @@ export function createActionHandler(coreModule) {
           encodedValue: 'summon|watcher',
           tooltip:      loc('sr4.hud.magic.summonWatcherTooltip'),
         },
+        {
+          id:           'banish-spirit',
+          name:         loc('sr4.hud.magic.banishSpirit'),
+          img:          'icons/svg/falling.svg',
+          encodedValue: 'banish|spirit',
+          tooltip:      loc('sr4.hud.magic.banishSpiritTooltip'),
+        },
+        {
+          id:           'bind-spirit',
+          name:         loc('sr4.hud.magic.bindSpirit'),
+          img:          'icons/svg/net.svg',
+          encodedValue: 'bind|spirit',
+          tooltip:      loc('sr4.hud.magic.bindSpiritTooltip'),
+        },
       ], 'magic', 'magic-summoning');
     }
 
@@ -551,6 +586,13 @@ export function createActionHandler(coreModule) {
         this.#addLinkedActionsAndEffects(actor, programs, 'matrix');
       }
 
+      const matrixCategoryActions = actor.items
+        .filter(i => i.type === 'Action' && !i.system.linkedItemId && i.system.category === this.#matrixCategoryValue())
+        .map(a => this.#actionButton(a));
+      if (matrixCategoryActions.length) {
+        this.#addToGroup(matrixCategoryActions, 'matrix', 'matrix-category-actions');
+      }
+
       if (!actor.system.technomancy?.technomancer) return;
 
       this.#addToGroup([
@@ -567,6 +609,20 @@ export function createActionHandler(coreModule) {
           img:          'icons/svg/d20.svg',
           encodedValue: 'threading|thread',
           tooltip:      loc('sr4.hud.matrix.threadComplexFormTooltip'),
+        },
+        {
+          id:           'decompile-sprite',
+          name:         loc('sr4.hud.matrix.decompileSprite'),
+          img:          'icons/svg/downgrade.svg',
+          encodedValue: 'decompile|sprite',
+          tooltip:      loc('sr4.hud.matrix.decompileSpriteTooltip'),
+        },
+        {
+          id:           'bind-sprite',
+          name:         loc('sr4.hud.matrix.bindSprite'),
+          img:          'icons/svg/net.svg',
+          encodedValue: 'bind|sprite',
+          tooltip:      loc('sr4.hud.matrix.bindSpriteTooltip'),
         },
       ], 'matrix', 'matrix-resonance');
     }
@@ -592,18 +648,23 @@ export function createActionHandler(coreModule) {
     }
 
     #buildActions(actor) {
-      const actions = actor.items
-        .filter(i => i.type === 'Action' && !i.system.linkedItemId)
-        .map(a => ({
-          id:           a.id,
-          name:         a.name,
-          img:          a.img,
-          encodedValue: `action|${a.id}`,
-          tooltip:      `${a.name} · ${a.system.actionType ?? ''}`,
-        }));
+      const items = actor.items.filter(i => i.type === 'Action' && !i.system.linkedItemId);
+      if (!items.length) return;
 
-      if (!actions.length) return;
-      this.#addToGroup(actions, 'actions', 'actions-list');
+      const categories = this.#actionCategories();
+
+      const uncategorized = items
+        .filter(a => !categories.includes(a.system.category))
+        .map(a => this.#actionButton(a));
+      if (uncategorized.length) this.#addToGroup(uncategorized, 'actions', 'actions-list');
+
+      this.#buildByCategory(
+        items, categories, 'actions',
+        category => `actions-category-${category.toLowerCase()}`,
+        a => a.system.category,
+        (a, b) => a.name.localeCompare(b.name),
+        a => this.#actionButton(a)
+      );
     }
 
     // -----------------------------------------------------------------------

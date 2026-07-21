@@ -5,11 +5,17 @@ vi.stubGlobal('game', {
   sr4: {
     dialogUtility: {
       openActionDialog: vi.fn(),
+      openMatrixActionDialog: vi.fn(),
       handleSkillRoll:  vi.fn(),
       handleAttackRoll: vi.fn(),
       handleFreeRoll:   vi.fn(),
     },
     SpellcastingFlow: { start: vi.fn() },
+    SummoningFlow: { start: vi.fn(), startWatcher: vi.fn() },
+    ThreadingFlow: { start: vi.fn() },
+    DismissalFlow: { start: vi.fn() },
+    BindingFlow: { startTargeted: vi.fn() },
+    ActionCategory: { MATRIX: 'MATRIX', RIGGING: 'RIGGING' },
     reloadWeapon: vi.fn().mockResolvedValue(undefined),
     rigging: {
       ControlModes: { AUTONOMOUS: 'autonomous', REMOTE: 'remote', JUMPED: 'jumped' },

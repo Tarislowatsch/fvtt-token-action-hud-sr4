@@ -398,6 +398,78 @@ describe('itemSheet', () => {
 });
 
 // -----------------------------------------------------------------------
+// Magic/Matrix flows: summon, banish/decompile, bind
+// -----------------------------------------------------------------------
+
+describe('banish', () => {
+  it('starts DismissalFlow for a spirit and refreshes the HUD', async () => {
+    const actor = makeActor();
+    await makeHandler(actor).handleActionClick({}, 'banish|spirit');
+    expect(game.sr4.DismissalFlow.start).toHaveBeenCalledWith(actor, 'spirit');
+    expect(game.tokenActionHud.update).toHaveBeenCalled();
+  });
+});
+
+describe('decompile', () => {
+  it('starts DismissalFlow for a sprite and refreshes the HUD', async () => {
+    const actor = makeActor();
+    await makeHandler(actor).handleActionClick({}, 'decompile|sprite');
+    expect(game.sr4.DismissalFlow.start).toHaveBeenCalledWith(actor, 'sprite');
+    expect(game.tokenActionHud.update).toHaveBeenCalled();
+  });
+});
+
+describe('bind', () => {
+  it('starts BindingFlow.startTargeted for a spirit', async () => {
+    const actor = makeActor();
+    await makeHandler(actor).handleActionClick({}, 'bind|spirit');
+    expect(game.sr4.BindingFlow.startTargeted).toHaveBeenCalledWith(actor, 'spirit');
+    expect(game.tokenActionHud.update).toHaveBeenCalled();
+  });
+
+  it('starts BindingFlow.startTargeted for a sprite', async () => {
+    const actor = makeActor();
+    await makeHandler(actor).handleActionClick({}, 'bind|sprite');
+    expect(game.sr4.BindingFlow.startTargeted).toHaveBeenCalledWith(actor, 'sprite');
+    expect(game.tokenActionHud.update).toHaveBeenCalled();
+  });
+
+  it('passes the id segment through unmodified, whatever it is', async () => {
+    const actor = makeActor();
+    await makeHandler(actor).handleActionClick({}, 'bind|foo');
+    expect(game.sr4.BindingFlow.startTargeted).toHaveBeenCalledWith(actor, 'foo');
+  });
+});
+
+// -----------------------------------------------------------------------
+// Action rolls: category-aware dialog branching
+// -----------------------------------------------------------------------
+
+describe('action roll category branching', () => {
+  it('routes an uncategorised action to openActionDialog', async () => {
+    const action = { id: 'a1', name: 'Sprint', system: { rating1: 3, rating2: 2 } };
+    const actor = makeActor();
+    actor.items.get = vi.fn(() => action);
+
+    await makeHandler(actor).handleActionClick({}, 'action|a1');
+
+    expect(game.sr4.dialogUtility.openActionDialog).toHaveBeenCalledWith(actor, 'Sprint', 5);
+    expect(game.sr4.dialogUtility.openMatrixActionDialog).not.toHaveBeenCalled();
+  });
+
+  it('routes a MATRIX-categorised action to openMatrixActionDialog', async () => {
+    const action = { id: 'a2', name: 'Data Search', system: { rating1: 4, rating2: 3, category: 'MATRIX' } };
+    const actor = makeActor();
+    actor.items.get = vi.fn(() => action);
+
+    await makeHandler(actor).handleActionClick({}, 'action|a2');
+
+    expect(game.sr4.dialogUtility.openMatrixActionDialog).toHaveBeenCalledWith(actor, 'Data Search', 7, 'MATRIX');
+    expect(game.sr4.dialogUtility.openActionDialog).not.toHaveBeenCalled();
+  });
+});
+
+// -----------------------------------------------------------------------
 // Vehicle: control mode + drone actions
 // -----------------------------------------------------------------------
 
