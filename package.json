@@ -5,7 +5,8 @@
   "scripts": {
     "watch": "node watch.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "sync-readme": "node scripts/sync-readme.js"
   },
   "devDependencies": {
     "vitest": "^4.1.8"

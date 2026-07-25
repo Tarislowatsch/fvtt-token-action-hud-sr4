@@ -107,6 +107,7 @@ function createSystemManager(coreModule) {
         {
           ...layoutGroup('matrix', 'matrix', 'sr4.hud.matrix.tab'),
           groups: [
+            layoutGroup('matrix_matrix-combat',           'matrix-combat',          'sr4.hud.matrix.combatActions'),
             layoutGroup('matrix_matrix-list',            'matrix-list',            'sr4.hud.matrix.tab'),
             layoutGroup('matrix_matrix-actions',          'matrix-actions',         'sr4.hud.matrix.actions'),
             layoutGroup('matrix_matrix-category-actions', 'matrix-category-actions','sr4.hud.matrix.categoryActions'),

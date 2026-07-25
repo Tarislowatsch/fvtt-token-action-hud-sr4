@@ -49,6 +49,11 @@ export function createActionHandler(coreModule) {
         return;
       }
 
+      if (actor.type === 'device') {
+        this.#buildDevice(actor);
+        return;
+      }
+
       this.#buildBasics(actor);
       this.#buildSkills(actor, 'active',    ACTIVE_SKILL_CATEGORIES,    'active-skills',    s => s.system.category ?? 'misc');
       this.#buildSkills(actor, 'knowledge', KNOWLEDGE_SKILL_CATEGORIES, 'knowledge-skills', s => s.system.category ?? 'misc');
@@ -220,6 +225,12 @@ export function createActionHandler(coreModule) {
       this.#buildEdge(actor);
       this.#buildItemActionsEffects(actor, 'CritterPower', 'powers');
       this.#buildSkills(actor, 'active', ACTIVE_SKILL_CATEGORIES, 'active-skills', s => s.system.category ?? 'misc');
+      this.#buildMonitor(actor);
+      this.#buildEffects(actor);
+    }
+
+    #buildDevice(actor) {
+      this.#addMatrixCombatActions(actor, false);
       this.#buildMonitor(actor);
       this.#buildEffects(actor);
     }
@@ -561,6 +572,32 @@ export function createActionHandler(coreModule) {
     // Matrix (Programs + Compiling/Threading)
     // -----------------------------------------------------------------------
 
+    #matrixCombatActions({ jackOutAllowed }) {
+      const actions = [
+        {
+          id:           'matrix-attack',
+          name:         loc('sr4.hud.matrix.attack'),
+          img:          'icons/svg/lightning.svg',
+          encodedValue: 'matrixAttack|attack',
+          tooltip:      loc('sr4.hud.matrix.attackTooltip'),
+        },
+      ];
+      if (jackOutAllowed) {
+        actions.push({
+          id:           'matrix-jack-out',
+          name:         loc('sr4.hud.matrix.jackOut'),
+          img:          'icons/svg/net.svg',
+          encodedValue: 'jackOut|jackOut',
+          tooltip:      loc('sr4.hud.matrix.jackOutTooltip'),
+        });
+      }
+      return actions;
+    }
+
+    #addMatrixCombatActions(actor, jackOutAllowed) {
+      this.#addToGroup(this.#matrixCombatActions({ jackOutAllowed }), 'matrix', 'matrix-combat');
+    }
+
     #buildMatrix(actor) {
       const programs = actor.items.filter(i => i.type === 'Program' && !i.system.complexform);
       if (programs.length) {
@@ -583,6 +620,12 @@ export function createActionHandler(coreModule) {
         .map(a => this.#actionButton(a));
       if (matrixCategoryActions.length) {
         this.#addToGroup(matrixCategoryActions, 'matrix', 'matrix-category-actions');
+      }
+
+      const hasMatrixAccess = actor.system.technomancy?.technomancer === true ||
+        actor.items.some(i => i.type === 'Commlink' && i.system?.equipped);
+      if (hasMatrixAccess) {
+        this.#addMatrixCombatActions(actor, !!actor.system.matrix?.jammedBy);
       }
 
       if (!actor.system.technomancy?.technomancer) return;

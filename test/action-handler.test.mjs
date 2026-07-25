@@ -36,6 +36,7 @@ function makeActor({ type = 'character', attrs = {}, items = [], effects = [], t
     getAttribute: vi.fn(key => attrs[key] ?? 0),
     items: {
       filter: vi.fn(fn => items.filter(fn)),
+      some:   vi.fn(fn => items.some(fn)),
       get:    vi.fn(id  => items.find(i => i.id === id)),
     },
     effects: { contents: effects },
@@ -276,6 +277,60 @@ describe('matrix', () => {
 
     const calledGroups = handler.addActions.mock.calls.map(([, g]) => g.id);
     expect(calledGroups).not.toContain('matrix-category-actions');
+  });
+
+  it('shows Matrix Attack for technomancers', async () => {
+    const actor = makeActor({ technomancer: true });
+    const handler = await build(actor);
+
+    const actions = actionsFor(handler, 'matrix-combat');
+    expect(actions.map(a => a.encodedValue)).toEqual(['matrixAttack|attack']);
+  });
+
+  it('shows Matrix Attack for actors with an equipped Commlink', async () => {
+    const items = [
+      { id: 'c1', type: 'Commlink', name: 'Renraku Sensei', img: null, system: { equipped: true } },
+    ];
+    const actor = makeActor({ items, technomancer: false });
+    const handler = await build(actor);
+
+    const actions = actionsFor(handler, 'matrix-combat');
+    expect(actions.map(a => a.encodedValue)).toEqual(['matrixAttack|attack']);
+  });
+
+  it('hides Matrix Attack for actors without matrix access', async () => {
+    const actor = makeActor({ technomancer: false });
+    const handler = await build(actor);
+
+    const calledGroups = handler.addActions.mock.calls.map(([, g]) => g.id);
+    expect(calledGroups).not.toContain('matrix-combat');
+  });
+
+  it('adds Jack Out only when jammed', async () => {
+    const actor = makeActor({ technomancer: true });
+    actor.system.matrix = { jammedBy: 'ic1' };
+    const handler = await build(actor);
+
+    const actions = actionsFor(handler, 'matrix-combat');
+    expect(actions.map(a => a.encodedValue)).toEqual(['matrixAttack|attack', 'jackOut|jackOut']);
+  });
+});
+
+// -----------------------------------------------------------------------
+// Device actors
+// -----------------------------------------------------------------------
+
+describe('device actor', () => {
+  it('only builds Matrix Attack, monitor and effects', async () => {
+    const actor = makeActor({ type: 'device' });
+    const handler = await build(actor);
+
+    const actions = actionsFor(handler, 'matrix-combat');
+    expect(actions.map(a => a.encodedValue)).toEqual(['matrixAttack|attack']);
+
+    const calledGroups = handler.addActions.mock.calls.map(([, g]) => g.id);
+    expect(calledGroups).not.toContain('active-skills');
+    expect(calledGroups).not.toContain('matrix-resonance');
   });
 });
 

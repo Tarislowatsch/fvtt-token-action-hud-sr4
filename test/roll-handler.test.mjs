@@ -441,6 +441,24 @@ describe('bind', () => {
   });
 });
 
+describe('matrixAttack', () => {
+  it('starts CybercombatFlow for the actor and refreshes the HUD', async () => {
+    const actor = makeActor();
+    await makeHandler(actor).handleActionClick({}, 'matrixAttack|attack');
+    expect(game.sr4.CybercombatFlow.start).toHaveBeenCalledWith(actor);
+    expect(game.tokenActionHud.update).toHaveBeenCalled();
+  });
+});
+
+describe('jackOut', () => {
+  it('calls CybercombatFlow.jackOut for the actor and refreshes the HUD', async () => {
+    const actor = makeActor();
+    await makeHandler(actor).handleActionClick({}, 'jackOut|jackOut');
+    expect(game.sr4.CybercombatFlow.jackOut).toHaveBeenCalledWith(actor);
+    expect(game.tokenActionHud.update).toHaveBeenCalled();
+  });
+});
+
 // -----------------------------------------------------------------------
 // Action rolls: category-aware dialog branching
 // -----------------------------------------------------------------------

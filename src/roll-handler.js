@@ -43,6 +43,8 @@ export function createRollHandler(coreModule) {
         case 'banish':            return this.#banishSpirit(actor);
         case 'decompile':         return this.#decompileSprite(actor);
         case 'bind':              return this.#bind(actor, id);
+        case 'matrixAttack':      return this.#matrixAttack(actor);
+        case 'jackOut':           return this.#jackOut(actor);
       }
     }
 
@@ -321,6 +323,16 @@ export function createRollHandler(coreModule) {
 
     async #bind(actor, entityType) {
       await game.sr4.BindingFlow.startTargeted(actor, entityType);
+      this.#updateHud();
+    }
+
+    async #matrixAttack(actor) {
+      await game.sr4.CybercombatFlow.start(actor);
+      this.#updateHud();
+    }
+
+    async #jackOut(actor) {
+      await game.sr4.CybercombatFlow.jackOut(actor);
       this.#updateHud();
     }
   };

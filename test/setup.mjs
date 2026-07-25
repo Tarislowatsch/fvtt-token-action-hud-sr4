@@ -15,6 +15,7 @@ vi.stubGlobal('game', {
     ThreadingFlow: { start: vi.fn() },
     DismissalFlow: { start: vi.fn() },
     BindingFlow: { startTargeted: vi.fn() },
+    CybercombatFlow: { start: vi.fn(), jackOut: vi.fn() },
     ActionCategory: { MATRIX: 'MATRIX', RIGGING: 'RIGGING' },
     reloadWeapon: vi.fn().mockResolvedValue(undefined),
     rigging: {
