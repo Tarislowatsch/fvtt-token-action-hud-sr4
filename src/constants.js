@@ -30,6 +30,7 @@ export const SPELL_CATEGORIES = [
   'HEALTH',
   'ILLUSION',
   'GEOMANCY',
+  'MANIPULATION',
 ];
 
 export const ATTRIBUTE_KEYS = [
