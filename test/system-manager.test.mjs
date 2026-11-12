@@ -142,7 +142,7 @@ describe('layout covers every group the action handler uses', () => {
     const realms = game.sr4.initiative.getAvailableRealms;
     game.sr4.effects = { getAllEffectTemplates: () => [{ key: 't1', name: 'Template', changes: [] }] };
     game.sr4.initiative.getAvailableRealms = () => ['physical', 'astral'];
-    game.sr4.linkedActors.findLinkedActors.mockReturnValueOnce([{ id: 's1', uuid: 'Actor.s1', name: 'S', isOwner: true }]);
+    game.sr4.linkedActors.findLinkedActors.mockReturnValueOnce(['spirit', 'sprite', 'vehicle'].map(t => ({ id: t, uuid: `Actor.${t}`, name: t, type: t, isOwner: true })));
     try {
       return await usedNestIds(makeActor({ type, items: itemsForEverything(), system, attrs: { MAGIC: 5 } }));
     } finally {
@@ -172,8 +172,9 @@ describe('layout covers every group the action handler uses', () => {
 
   it('the character fixture reaches every layout group a character can fill', async () => {
     const used = new Set(await buildEverything('character', CHARACTER_SYSTEM));
-    const vehicleOnly = ['basics_basics-control-mode', 'basics_basics-drone-actions'];
-    const unreached = [...layoutNestIds()].filter(id => !used.has(id) && !vehicleOnly.includes(id));
+    // Filled only for vehicles (control mode, drone actions) or by a spirit/sprite unlinking itself.
+    const notForCharacters = ['basics_basics-control-mode', 'basics_basics-drone-actions', 'basics_basics-links'];
+    const unreached = [...layoutNestIds()].filter(id => !used.has(id) && !notForCharacters.includes(id));
     expect(unreached).toEqual([]);
   });
 });

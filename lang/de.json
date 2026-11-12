@@ -150,7 +150,25 @@
         "tab": "Verknüpfungen",
         "removeFromOwner": "Vom Besitzer entfernen",
         "removeFromOwnerTooltip": "Vom besitzenden Charakter lösen; der Akteur bleibt in der Welt erhalten",
-        "removeTooltip": "Vom Charakter entfernen"
+        "bindHint": "Klick zum Binden",
+        "rebindHint": "Klick zum erneuten Binden für weitere Dienste",
+        "registerHint": "Klick zum Registrieren",
+        "reregisterHint": "Klick zum erneuten Registrieren für weitere Aufgaben",
+        "unlinkHint": "Strg+Klick zum Entfernen vom Charakter",
+        "services": {
+          "one": "Dienst",
+          "other": "Dienste"
+        },
+        "tasks": {
+          "one": "Aufgabe",
+          "other": "Aufgaben"
+        },
+        "spirits": "Geister",
+        "sprites": "Sprites",
+        "bound": "Gebunden",
+        "unbound": "Ungebunden",
+        "registered": "Registriert",
+        "unregistered": "Unregistriert"
       }
     }
   }

@@ -536,6 +536,49 @@ describe('vehicle weapon roll', () => {
   });
 });
 
+describe('linkedActor', () => {
+  it('click binds the linked spirit or sprite and refreshes the HUD', async () => {
+    const target = { uuid: 'Actor.spirit1', type: 'spirit' };
+    fromUuid.mockResolvedValueOnce(target);
+    const actor = makeActor();
+
+    await makeHandler(actor).handleActionClick({}, 'linkedActor|Actor.spirit1');
+
+    expect(game.sr4.BindingFlow.start).toHaveBeenCalledWith(actor, target);
+    expect(game.sr4.linkedActors.confirmAndUnlink).not.toHaveBeenCalled();
+    expect(game.tokenActionHud.update).toHaveBeenCalled();
+  });
+
+  it('Ctrl+Click unlinks instead of binding', async () => {
+    const target = { uuid: 'Actor.spirit1', type: 'spirit' };
+    fromUuid.mockResolvedValueOnce(target);
+
+    await makeHandler(makeActor()).handleActionClick({ ctrlKey: true }, 'linkedActor|Actor.spirit1');
+
+    expect(game.sr4.linkedActors.confirmAndUnlink).toHaveBeenCalledWith(target);
+    expect(game.sr4.BindingFlow.start).not.toHaveBeenCalled();
+  });
+
+  it('ignores a right-click so binding never starts by accident', async () => {
+    const handler = makeHandler(makeActor());
+    handler.isRightClick = true;
+
+    await handler.handleActionClick({}, 'linkedActor|Actor.spirit1');
+
+    expect(fromUuid).not.toHaveBeenCalled();
+    expect(game.sr4.BindingFlow.start).not.toHaveBeenCalled();
+  });
+
+  it('warns when the linked actor no longer exists', async () => {
+    fromUuid.mockResolvedValueOnce(null);
+
+    await makeHandler(makeActor()).handleActionClick({}, 'linkedActor|Actor.gone');
+
+    expect(ui.notifications.warn).toHaveBeenCalledWith('sr4.ui.linkedActorNotFound');
+    expect(game.sr4.BindingFlow.start).not.toHaveBeenCalled();
+  });
+});
+
 describe('unlink', () => {
   it('confirms and unlinks the linked actor, then refreshes the HUD', async () => {
     const linked = { uuid: 'Actor.spirit1' };

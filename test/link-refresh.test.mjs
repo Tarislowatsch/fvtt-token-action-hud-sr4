@@ -20,8 +20,17 @@ describe('registerLinkRefresh', () => {
     expect(game.tokenActionHud.update).toHaveBeenCalledOnce();
   });
 
-  it('ignores updates that do not touch the link', () => {
-    handlers.get('updateActor')({ type: 'spirit' }, { system: { services: 2 } });
+  it.each([
+    ['spirit', { services: 2 }],
+    ['sprite', { tasks: 1 }],
+  ])('refreshes the HUD when the owed services/tasks of a %s change', (type, system) => {
+    handlers.get('updateActor')({ type }, { system });
+
+    expect(game.tokenActionHud.update).toHaveBeenCalledOnce();
+  });
+
+  it('ignores updates to fields the HUD does not show', () => {
+    handlers.get('updateActor')({ type: 'spirit' }, { system: { force: 5 } });
 
     expect(game.tokenActionHud.update).not.toHaveBeenCalled();
   });

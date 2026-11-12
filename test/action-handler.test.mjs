@@ -365,7 +365,7 @@ describe('effect tooltip', () => {
     const handler = await build(actor);
 
     const actions = actionsFor(handler, 'effects-active');
-    expect(actions[0].tooltip).toBe('Blind\nsr4.hud.effects.deleteHint');
+    expect(actions[0].tooltip).toBe('Blind<br>sr4.hud.effects.deleteHint');
   });
 });
 
@@ -415,7 +415,7 @@ describe('weapons', () => {
     const weapon = actionsFor(handler, 'weapons-list')[0];
     expect(weapon.name).toBe('Pistol (7/15)');
     expect(weapon.encodedValue).toBe('weapon|w1');
-    expect(weapon.tooltip).toBe('Pistol · sr4.hud.weapons.damage: 8 sr4.hud.weapons.ap: -4\nsr4.hud.weapons.equipHint\nsr4.hud.weapons.reloadHint');
+    expect(weapon.tooltip).toBe('Pistol · sr4.hud.weapons.damage: 8 sr4.hud.weapons.ap: -4<br>sr4.hud.weapons.equipHint<br>sr4.hud.weapons.reloadHint');
   });
 
   it('omits ammo and reload hint when maxAmmo is 0', async () => {
@@ -428,7 +428,7 @@ describe('weapons', () => {
 
     const weapon = actionsFor(handler, 'weapons-list')[0];
     expect(weapon.name).toBe('SMG');
-    expect(weapon.tooltip).toBe('SMG · sr4.hud.weapons.damage: 6 sr4.hud.weapons.ap: 0\nsr4.hud.weapons.equipHint');
+    expect(weapon.tooltip).toBe('SMG · sr4.hud.weapons.damage: 6 sr4.hud.weapons.ap: 0<br>sr4.hud.weapons.equipHint');
   });
 
   it('marks an equipped ranged weapon with the active css class', async () => {
@@ -451,7 +451,7 @@ describe('weapons', () => {
     const handler = await build(actor);
 
     const weapon = actionsFor(handler, 'weapons-list').find(a => a.id === 'w1');
-    expect(weapon.tooltip).toBe('Katana · sr4.hud.weapons.damage: 8 sr4.hud.weapons.ap: -3\nsr4.hud.weapons.equipHint');
+    expect(weapon.tooltip).toBe('Katana · sr4.hud.weapons.damage: 8 sr4.hud.weapons.ap: -3<br>sr4.hud.weapons.equipHint');
   });
 
   it('does not show the reload hint for a melee weapon', async () => {
@@ -860,29 +860,101 @@ describe('vehicle drone actions', () => {
 // -----------------------------------------------------------------------
 
 describe('basics-links', () => {
-  function makeLinked({ id, type = 'spirit', isOwner = true }) {
-    return { id, uuid: `Actor.${id}`, name: `Linked ${id}`, img: `${id}.png`, type, isOwner };
+  function makeLinked({ id, type = 'spirit', isOwner = true, bound = false, system = {} }) {
+    return { id, uuid: `Actor.${id}`, name: `Linked ${id}`, img: `${id}.png`, type, isOwner, system: { bound, ...system } };
   }
 
   function calledGroups(handler) {
     return handler.addActions.mock.calls.map(([, g]) => g.id);
   }
 
-  it('lists the owned spirits, sprites and vehicles of a character', async () => {
-    const actor = makeActor();
+  async function buildCharacterWith(linked, { magic = 4, technomancer = true } = {}) {
+    const actor = makeActor({ attrs: { MAGIC: magic }, technomancer });
     actor.uuid = 'Actor.char1';
-    game.sr4.linkedActors.findLinkedActors.mockReturnValueOnce([
+    game.sr4.linkedActors.findLinkedActors.mockReturnValueOnce(linked);
+    return build(actor);
+  }
+
+  it('puts spirits in the magic tab and sprites in the matrix tab', async () => {
+    const handler = await buildCharacterWith([
       makeLinked({ id: 'spirit1' }),
-      makeLinked({ id: 'drone1', type: 'vehicle' }),
+      makeLinked({ id: 'sprite1', type: 'sprite' }),
       makeLinked({ id: 'foreign1', isOwner: false }),
     ]);
 
-    const handler = await build(actor);
-
     expect(game.sr4.linkedActors.findLinkedActors).toHaveBeenCalledWith('Actor.char1');
-    const actions = actionsFor(handler, 'basics-links');
-    expect(actions.map(a => a.encodedValue)).toEqual(['unlink|Actor.spirit1', 'unlink|Actor.drone1']);
-    expect(actions[0]).toMatchObject({ name: 'Linked spirit1', img: 'spirit1.png' });
+    const groups = handler.addActions.mock.calls.map(([actions, g]) => [g.nestId, actions.map(a => a.encodedValue)]);
+    expect(groups).toEqual(expect.arrayContaining([
+      ['magic_magic-spirits',   ['linkedActor|Actor.spirit1']],
+      ['matrix_matrix-sprites', ['linkedActor|Actor.sprite1']],
+    ]));
+  });
+
+  it('does not list linked vehicles; unlinking a drone is left to the sheet', async () => {
+    const handler = await buildCharacterWith([makeLinked({ id: 'drone1', type: 'vehicle' })]);
+
+    const encoded = handler.addActions.mock.calls.flatMap(([actions]) => actions.map(a => a.encodedValue));
+    expect(encoded).not.toContain('linkedActor|Actor.drone1');
+  });
+
+  it.each([
+    ['spirit', false, { services: 2 }, 'magic-spirits',  'sr4.hud.links.unbound',      '2', '2 sr4.hud.links.services.other', ''],
+    ['spirit', true,  { services: 1 }, 'magic-spirits',  'sr4.hud.links.bound',        '1', '1 sr4.hud.links.services.one',   'active'],
+    ['sprite', false, {},              'matrix-sprites', 'sr4.hud.links.unregistered', '0', '0 sr4.hud.links.tasks.other',    ''],
+    ['sprite', true,  { tasks: 3 },    'matrix-sprites', 'sr4.hud.links.registered',   '3', '3 sr4.hud.links.tasks.other',    'active'],
+  ])('shows binding status and services of a %s (bound: %s) next to the name', async (type, bound, system, group, status, count, countTitle, cssClass) => {
+    const handler = await buildCharacterWith([makeLinked({ id: 'x1', type, bound, system })]);
+
+    expect(actionsFor(handler, group)[0]).toMatchObject({
+      name: 'Linked x1',
+      img: 'x1.png',
+      cssClass,
+      info1: { text: status },
+      info2: { text: count, title: countTitle },
+    });
+  });
+
+  it('falls back to the "other" plural form when a language lacks the exact category', async () => {
+    const has = game.i18n.has;
+    game.i18n.has = key => !key.endsWith('.one');
+    try {
+      const handler = await buildCharacterWith([makeLinked({ id: 'x1', system: { services: 1 } })]);
+      expect(actionsFor(handler, 'magic-spirits')[0].info2.title).toBe('1 sr4.hud.links.services.other');
+    } finally {
+      game.i18n.has = has;
+    }
+  });
+
+  it('hides spirits from a character without Magic', async () => {
+    const handler = await buildCharacterWith([makeLinked({ id: 'spirit1' })], { magic: 0 });
+
+    expect(calledGroups(handler)).not.toContain('magic-spirits');
+  });
+
+  it('hides sprites from a character who is not a technomancer', async () => {
+    const handler = await buildCharacterWith([makeLinked({ id: 'sprite1', type: 'sprite' })], { technomancer: false });
+
+    expect(calledGroups(handler)).not.toContain('matrix-sprites');
+  });
+
+  it.each([
+    ['spirit', false, 'sr4.hud.links.bindHint'],
+    ['spirit', true,  'sr4.hud.links.rebindHint'],
+    ['sprite', false, 'sr4.hud.links.registerHint'],
+    ['sprite', true,  'sr4.hud.links.reregisterHint'],
+  ])('explains click and Ctrl+Click for a %s (bound: %s)', async (type, bound, hint) => {
+    const handler = await buildCharacterWith([makeLinked({ id: 'x1', type, bound })]);
+    const group = type === 'spirit' ? 'magic-spirits' : 'matrix-sprites';
+
+    expect(actionsFor(handler, group)[0].tooltip).toBe(`${hint}<br>sr4.hud.links.unlinkHint`);
+  });
+
+  it('only adds the groups that have linked actors', async () => {
+    const handler = await buildCharacterWith([makeLinked({ id: 'spirit1' })]);
+
+    expect(calledGroups(handler)).toContain('magic-spirits');
+    expect(calledGroups(handler)).not.toContain('matrix-sprites');
+    expect(calledGroups(handler)).not.toContain('basics-links');
   });
 
   it('omits the group for a character without linked actors', async () => {
@@ -894,7 +966,6 @@ describe('basics-links', () => {
   it.each([
     ['spirit', { ownerUuid: 'Actor.char1' }],
     ['sprite', { ownerUuid: 'Actor.char1' }],
-    ['vehicle', { riggerUuid: 'Actor.char1' }],
   ])('offers a linked %s to remove itself from its owner', async (type, link) => {
     const actor = makeActor({ type });
     actor.uuid = `Actor.${type}1`;
@@ -907,6 +978,17 @@ describe('basics-links', () => {
     expect(actions).toHaveLength(1);
     expect(actions[0].encodedValue).toBe(`unlink|Actor.${type}1`);
     expect(game.sr4.linkedActors.findLinkedActors).not.toHaveBeenCalledWith(`Actor.${type}1`);
+  });
+
+  it('offers no self-unlink to a linked vehicle', async () => {
+    const actor = makeActor({ type: 'vehicle' });
+    actor.uuid = 'Actor.vehicle1';
+    actor.isOwner = true;
+    actor.system = { ...actor.system, riggerUuid: 'Actor.char1' };
+
+    const handler = await build(actor);
+
+    expect(calledGroups(handler)).not.toContain('basics-links');
   });
 
   it('offers nothing to an unlinked spirit', async () => {
@@ -1126,7 +1208,7 @@ describe('effect templates', () => {
       const handler = await build(makeActor());
       const [action] = actionsFor(handler, 'effects-templates');
       expect(action).toMatchObject({ id: 'effect-blind-add', encodedValue: 'effectTemplate|blind', img: 'icons/svg/aura.svg' });
-      expect(action.tooltip).toBe('Blind · -6 (3 sr4.hud.effects.turns)\nsr4.hud.effects.applyHint');
+      expect(action.tooltip).toBe('Blind · -6 (3 sr4.hud.effects.turns)<br>sr4.hud.effects.applyHint');
     },
   ));
 
@@ -1135,7 +1217,7 @@ describe('effect templates', () => {
     async () => {
       const handler = await build(makeActor());
       expect(actionsFor(handler, 'effects-templates')[0].tooltip)
-        .toBe('Stunned · +2 (1 sr4.hud.effects.turn)\nsr4.hud.effects.applyHint');
+        .toBe('Stunned · +2 (1 sr4.hud.effects.turn)<br>sr4.hud.effects.applyHint');
     },
   ));
 
@@ -1143,7 +1225,7 @@ describe('effect templates', () => {
     [{ key: 'x', name: 'Odd', changes: [{ value: 'upgrade' }] }],
     async () => {
       const handler = await build(makeActor());
-      expect(actionsFor(handler, 'effects-templates')[0].tooltip).toBe('Odd · upgrade\nsr4.hud.effects.applyHint');
+      expect(actionsFor(handler, 'effects-templates')[0].tooltip).toBe('Odd · upgrade<br>sr4.hud.effects.applyHint');
     },
   ));
 });

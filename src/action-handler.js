@@ -4,6 +4,7 @@
 
 import {
   loc,
+  plural,
   doubleEdgePool,
   soakPools,
   attributeTestPool,
@@ -57,6 +58,29 @@ const RESONANCE_ACTIONS = [
 
 const MATRIX_ATTACK_ACTION = { id: 'matrix-attack',   key: 'sr4.hud.matrix.attack',  img: 'icons/svg/lightning.svg', encodedValue: 'matrixAttack|attack' };
 const JACK_OUT_ACTION      = { id: 'matrix-jack-out', key: 'sr4.hud.matrix.jackOut', img: 'icons/svg/net.svg',       encodedValue: 'jackOut|jackOut' };
+
+// Where a character's linked spirits and sprites are listed, and how binding is worded for each.
+// Each list only appears while the character can still bind that kind of entity.
+// Vehicles are left out on purpose: unlinking a drone is rare and better done on the sheet.
+const L = 'sr4.hud.links';
+const LINK_PLACEMENT = {
+  spirit: {
+    parent: 'magic', group: 'magic-spirits', countField: 'services', unit: `${L}.services`,
+    available: actor => !!actor.getAttribute('MAGIC'),
+    bound:   { status: `${L}.bound`,   hint: `${L}.rebindHint` },
+    unbound: { status: `${L}.unbound`, hint: `${L}.bindHint` },
+  },
+  sprite: {
+    parent: 'matrix', group: 'matrix-sprites', countField: 'tasks', unit: `${L}.tasks`,
+    available: actor => actor.system.technomancy?.technomancer === true,
+    bound:   { status: `${L}.registered`,   hint: `${L}.reregisterHint` },
+    unbound: { status: `${L}.unregistered`, hint: `${L}.registerHint` },
+  },
+};
+
+// Linked actor types that get a "Remove from Owner" button on their own HUD.
+// Kept apart from LINK_PLACEMENT so listing drones later does not bring this back for vehicles.
+const SELF_UNLINKABLE = new Set(['spirit', 'sprite']);
 
 function fixedAction({ key, ...action }) {
   return { ...action, name: loc(key), tooltip: loc(`${key}Tooltip`) };
@@ -155,7 +179,7 @@ export function createActionHandler(coreModule) {
     }
 
     // -----------------------------------------------------------------------
-    // Linked actors (spirits, sprites, vehicles)
+    // Linked actors (spirits, sprites)
     // -----------------------------------------------------------------------
 
     #buildLinks(actor) {
@@ -164,7 +188,7 @@ export function createActionHandler(coreModule) {
 
       const ownerField = api.OWNER_LINK_FIELDS[actor.type];
       if (ownerField) {
-        if (!actor.isOwner || !actor.system?.[ownerField]) return;
+        if (!SELF_UNLINKABLE.has(actor.type) || !actor.isOwner || !actor.system?.[ownerField]) return;
         this.#addToGroup([{
           id:           'unlink-self',
           name:         loc('sr4.hud.links.removeFromOwner'),
@@ -175,16 +199,34 @@ export function createActionHandler(coreModule) {
         return;
       }
 
-      const actions = api.findLinkedActors(actor.uuid)
-        .filter(linked => linked.isOwner)
-        .map(linked => ({
-          id:           `unlink-${linked.id}`,
-          name:         linked.name,
-          img:          linked.img,
-          encodedValue: `unlink|${linked.uuid}`,
-          tooltip:      `${loc('sr4.hud.links.removeTooltip')}: ${linked.name}`,
-        }));
-      if (actions.length) this.#addToGroup(actions, 'basics', 'basics-links');
+      const owned = api.findLinkedActors(actor.uuid).filter(l => l.isOwner);
+      for (const [type, placement] of Object.entries(LINK_PLACEMENT)) {
+        if (!placement.available(actor)) continue;
+        const actions = owned.filter(l => l.type === type).map(l => this.#linkedActorAction(l, placement));
+        if (actions.length) this.#addToGroup(actions, placement.parent, placement.group);
+      }
+    }
+
+    /**
+     * One button per linked spirit/sprite: click binds (or rebinds), Ctrl+Click unlinks it.
+     * Binding and linking are independent: a linked spirit may be unbound but still owe services.
+     * Status and services sit in info1/info2 so long names do not push them out of view.
+     */
+    #linkedActorAction(linked, placement) {
+      const bound = linked.system?.bound === true;
+      const state = bound ? placement.bound : placement.unbound;
+      const count = linked.system?.[placement.countField] ?? 0;
+
+      return {
+        id:           `linked-${linked.id}`,
+        name:         linked.name,
+        img:          linked.img,
+        encodedValue: `linkedActor|${linked.uuid}`,
+        cssClass:     bound ? 'active' : '',
+        info1:        { text: loc(state.status) },
+        info2:        { text: `${count}`, title: `${count} ${plural(placement.unit, count)}` },
+        tooltip:      `${loc(state.hint)}<br>${loc('sr4.hud.links.unlinkHint')}`,
+      };
     }
 
     // -----------------------------------------------------------------------
@@ -557,7 +599,7 @@ export function createActionHandler(coreModule) {
         img:          w.img,
         encodedValue: `weapon|${w.id}`,
         cssClass:     w.system.equipped ? 'active' : '',
-        tooltip:      `${stats}\n${hints.join('\n')}`,
+        tooltip:      [stats, ...hints].join('<br>'),
       };
     }
 
@@ -733,7 +775,7 @@ export function createActionHandler(coreModule) {
     #effectTooltip({ name, changes, duration }, hint) {
       const summary = this.#changeSummary(changes);
       const stats = summary ? ` · ${summary}${this.#durationSummary(duration)}` : '';
-      return `${name}${stats}\n${hint}`;
+      return `${name}${stats}<br>${hint}`;
     }
   };
 }

@@ -2,6 +2,8 @@ import { vi } from 'vitest';
 
 vi.stubGlobal('game', {
   i18n: {
+    lang:     'en',
+    has:      () => true,
     localize: (key) => key,
     format:   (key, data) => [key, ...Object.values(data ?? {})].join(' '),
   },
@@ -17,7 +19,7 @@ vi.stubGlobal('game', {
     SummoningFlow: { start: vi.fn(), startWatcher: vi.fn() },
     ThreadingFlow: { start: vi.fn() },
     DismissalFlow: { start: vi.fn() },
-    BindingFlow: { startTargeted: vi.fn() },
+    BindingFlow: { start: vi.fn(), startTargeted: vi.fn() },
     CybercombatFlow: { start: vi.fn(), jackOut: vi.fn() },
     ActionCategory: { MATRIX: 'MATRIX', RIGGING: 'RIGGING' },
     reloadWeapon: vi.fn().mockResolvedValue(undefined),

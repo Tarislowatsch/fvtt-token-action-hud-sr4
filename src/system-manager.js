@@ -95,6 +95,7 @@ function createSystemManager(coreModule) {
             layoutGroup('magic_spells-actions', 'spells-actions', 'sr4.hud.spells.actions'),
             layoutGroup('magic_spells-effects', 'spells-effects', 'sr4.hud.spells.effects'),
             layoutGroup('magic_magic-summoning', 'magic-summoning', 'sr4.hud.magic.summoning'),
+            layoutGroup('magic_magic-spirits',   'magic-spirits',   'sr4.hud.links.spirits'),
           ],
         },
         {
@@ -106,6 +107,7 @@ function createSystemManager(coreModule) {
             layoutGroup('matrix_matrix-category-actions', 'matrix-category-actions','sr4.hud.matrix.categoryActions'),
             layoutGroup('matrix_matrix-effects',          'matrix-effects',         'sr4.hud.matrix.effects'),
             layoutGroup('matrix_matrix-resonance',        'matrix-resonance',       'sr4.hud.matrix.resonanceActions'),
+            layoutGroup('matrix_matrix-sprites',          'matrix-sprites',         'sr4.hud.links.sprites'),
           ],
         },
         {

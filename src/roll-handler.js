@@ -25,6 +25,9 @@ export function createRollHandler(coreModule) {
 
       if (event.ctrlKey && type === 'effectToggle') return this.#refreshAfter(actor.effects.get(id)?.delete());
       if (event.ctrlKey && type === 'weapon')       return this.#toggleEquip(actor, id);
+      if (event.ctrlKey && type === 'linkedActor')  return this.#unlink(id);
+      // TAH routes right-clicks here too; binding costs drain, so only a deliberate left-click starts it.
+      if (this.isRightClick && type === 'linkedActor') return;
       if (event.shiftKey && type === 'weapon')      return this.#weaponReloadShortcut(actor, id);
 
       switch (type) {
@@ -58,6 +61,7 @@ export function createRollHandler(coreModule) {
         case 'matrixAttack':     return this.#refreshAfter(sr4.CybercombatFlow.start(actor));
         case 'jackOut':          return this.#refreshAfter(sr4.CybercombatFlow.jackOut(actor));
         case 'unlink':           return this.#unlink(id);
+        case 'linkedActor':      return this.#bindLinked(actor, id);
       }
     }
 
@@ -266,6 +270,13 @@ export function createRollHandler(coreModule) {
     // -----------------------------------------------------------------------
     // Linked actors
     // -----------------------------------------------------------------------
+
+    /** Binds a linked spirit or registers a linked sprite; rebinding adds services/tasks. */
+    async #bindLinked(actor, uuid) {
+      const target = await fromUuid(uuid);
+      if (!target) return ui.notifications?.warn(loc('sr4.ui.linkedActorNotFound'));
+      await this.#refreshAfter(game.sr4.BindingFlow.start(actor, target));
+    }
 
     async #unlink(uuid) {
       const linked = await fromUuid(uuid);

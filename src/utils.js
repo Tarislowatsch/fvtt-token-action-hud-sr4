@@ -10,6 +10,16 @@ import { ACTION_CATEGORIES } from './constants.js';
 export const loc = (key) => game.i18n.localize(key);
 export const fmt = (key, data) => game.i18n.format(key, data);
 
+/**
+ * Localized noun for a count, using the plural category of the current language
+ * (`${base}.one`, `${base}.few`, …), falling back to `${base}.other`.
+ */
+export function plural(base, count) {
+  const category = new Intl.PluralRules(game.i18n.lang || 'en').select(count);
+  const key = `${base}.${category}`;
+  return loc(game.i18n.has(key) ? key : `${base}.other`);
+}
+
 // ---------------------------------------------------------------------------
 // Dice pools
 // ---------------------------------------------------------------------------

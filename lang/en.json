@@ -84,7 +84,25 @@
         "tab": "Linked Actors",
         "removeFromOwner": "Remove from Owner",
         "removeFromOwnerTooltip": "Unlink from the owning character; the actor stays in the world",
-        "removeTooltip": "Remove from this character"
+        "bindHint": "Click to bind",
+        "rebindHint": "Click to rebind for more services",
+        "registerHint": "Click to register",
+        "reregisterHint": "Click to re-register for more tasks",
+        "unlinkHint": "Ctrl+Click to remove from this character",
+        "services": {
+          "one": "service",
+          "other": "services"
+        },
+        "tasks": {
+          "one": "task",
+          "other": "tasks"
+        },
+        "spirits": "Spirits",
+        "sprites": "Sprites",
+        "bound": "Bound",
+        "unbound": "Unbound",
+        "registered": "Registered",
+        "unregistered": "Unregistered"
       },
       "magic": {
         "tab": "Magic",
