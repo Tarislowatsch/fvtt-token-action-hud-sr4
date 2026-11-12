@@ -1,7 +1,10 @@
 import { vi } from 'vitest';
 
 vi.stubGlobal('game', {
-  i18n: { localize: (key) => key },
+  i18n: {
+    localize: (key) => key,
+    format:   (key, data) => [key, ...Object.values(data ?? {})].join(' '),
+  },
   sr4: {
     dialogUtility: {
       openActionDialog: vi.fn(),
@@ -31,6 +34,11 @@ vi.stubGlobal('game', {
       getAvailableRealms: vi.fn().mockReturnValue(['physical']),
       getCombatantRealm: vi.fn().mockReturnValue('physical'),
     },
+    linkedActors: {
+      OWNER_LINK_FIELDS: { spirit: 'ownerUuid', sprite: 'ownerUuid', vehicle: 'riggerUuid' },
+      findLinkedActors: vi.fn().mockReturnValue([]),
+      confirmAndUnlink: vi.fn().mockResolvedValue(true),
+    },
   },
   combat: null,
   tokenActionHud: { update: vi.fn() },
@@ -45,3 +53,5 @@ vi.stubGlobal('foundry', {
 });
 
 vi.stubGlobal('Hooks', { once: vi.fn(), call: vi.fn() });
+
+vi.stubGlobal('fromUuid', vi.fn().mockResolvedValue(null));

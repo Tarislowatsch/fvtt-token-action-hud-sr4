@@ -535,3 +535,298 @@ describe('vehicle weapon roll', () => {
     expect(game.sr4.rigging.openDroneAttackDialog).not.toHaveBeenCalled();
   });
 });
+
+describe('unlink', () => {
+  it('confirms and unlinks the linked actor, then refreshes the HUD', async () => {
+    const linked = { uuid: 'Actor.spirit1' };
+    fromUuid.mockResolvedValueOnce(linked);
+    game.tokenActionHud.update.mockClear();
+
+    await makeHandler(makeActor()).handleActionClick({}, 'unlink|Actor.spirit1');
+
+    expect(fromUuid).toHaveBeenCalledWith('Actor.spirit1');
+    expect(game.sr4.linkedActors.confirmAndUnlink).toHaveBeenCalledWith(linked);
+    expect(game.tokenActionHud.update).toHaveBeenCalled();
+  });
+
+  it('keeps the HUD as it is when the confirmation is declined', async () => {
+    fromUuid.mockResolvedValueOnce({ uuid: 'Actor.spirit1' });
+    game.sr4.linkedActors.confirmAndUnlink.mockResolvedValueOnce(false);
+    game.tokenActionHud.update.mockClear();
+
+    await makeHandler(makeActor()).handleActionClick({}, 'unlink|Actor.spirit1');
+
+    expect(game.tokenActionHud.update).not.toHaveBeenCalled();
+  });
+
+  it('warns when the linked actor no longer exists', async () => {
+    fromUuid.mockResolvedValueOnce(null);
+    game.sr4.linkedActors.confirmAndUnlink.mockClear();
+
+    await makeHandler(makeActor()).handleActionClick({}, 'unlink|Actor.gone');
+
+    expect(ui.notifications.warn).toHaveBeenCalledWith('sr4.ui.linkedActorNotFound');
+    expect(game.sr4.linkedActors.confirmAndUnlink).not.toHaveBeenCalled();
+  });
+});
+
+// -----------------------------------------------------------------------
+// Skill / spell / free roll
+// -----------------------------------------------------------------------
+
+describe('skill', () => {
+  it('opens the skill roll dialog with the skill name', async () => {
+    const actor = makeActor();
+    actor.items.get = vi.fn(() => ({ id: 's1', name: 'Pistols' }));
+    await makeHandler(actor).handleActionClick({}, 'skill|s1');
+    expect(game.sr4.dialogUtility.handleSkillRoll).toHaveBeenCalledWith(actor, 'Pistols');
+  });
+
+  it('does nothing when the skill is not found', async () => {
+    const actor = makeActor();
+    actor.items.get = vi.fn(() => undefined);
+    await makeHandler(actor).handleActionClick({}, 'skill|gone');
+    expect(game.sr4.dialogUtility.handleSkillRoll).not.toHaveBeenCalled();
+  });
+});
+
+describe('spell', () => {
+  it('starts the spellcasting flow for the spell', async () => {
+    const spell = { id: 'sp1', name: 'Fireball' };
+    const actor = makeActor();
+    actor.items.get = vi.fn(() => spell);
+    await makeHandler(actor).handleActionClick({}, 'spell|sp1');
+    expect(game.sr4.SpellcastingFlow.start).toHaveBeenCalledWith(actor, spell);
+  });
+
+  it('does nothing when the spell is not found', async () => {
+    const actor = makeActor();
+    actor.items.get = vi.fn(() => undefined);
+    await makeHandler(actor).handleActionClick({}, 'spell|gone');
+    expect(game.sr4.SpellcastingFlow.start).not.toHaveBeenCalled();
+  });
+});
+
+describe('freeRoll', () => {
+  it('opens the free roll dialog', async () => {
+    await makeHandler(makeActor()).handleActionClick({}, 'freeRoll|free-roll');
+    expect(game.sr4.dialogUtility.handleFreeRoll).toHaveBeenCalled();
+  });
+});
+
+describe('edgeRoll', () => {
+  it('doubles the Edge attribute for a double edge roll', async () => {
+    const actor = makeActor({ maxEdge: 5 });
+    await makeHandler(actor).handleActionClick({}, 'edgeRoll|double');
+    expect(game.sr4.dialogUtility.openActionDialog).toHaveBeenCalledWith(actor, 'sr4.hud.edge.double', 10);
+  });
+});
+
+describe('edge|<unknown>', () => {
+  it('does not update the actor', async () => {
+    const actor = makeActor();
+    await makeHandler(actor).handleActionClick({}, 'edge|bogus');
+    expect(actor.update).not.toHaveBeenCalled();
+  });
+});
+
+// -----------------------------------------------------------------------
+// Soak (all modes)
+// -----------------------------------------------------------------------
+
+describe('soak modes', () => {
+  it.each([
+    ['willpower',      'sr4.hud.soak.willpower',     3],
+    ['body',           'sr4.hud.soak.body',          4],
+    ['body-impact',    'sr4.hud.soak.bodyImpact',    6],
+    ['body-ballistic', 'sr4.hud.soak.bodyBallistic', 9],
+  ])('rolls %s soak with the matching pool', async (mode, label, dice) => {
+    const actor = makeActor({ body: 4, armor: { ballistic: 5, impact: 2 }, attrs: { WILLPOWER: 3 } });
+    await makeHandler(actor).handleActionClick({}, `soak|${mode}`);
+    expect(game.sr4.dialogUtility.openActionDialog).toHaveBeenCalledWith(actor, label, dice);
+  });
+
+  it('does nothing for an unknown soak mode', async () => {
+    await makeHandler(makeActor()).handleActionClick({}, 'soak|bogus');
+    expect(game.sr4.dialogUtility.openActionDialog).not.toHaveBeenCalled();
+  });
+});
+
+// -----------------------------------------------------------------------
+// Autosoft
+// -----------------------------------------------------------------------
+
+describe('autosoft', () => {
+  it('rolls Pilot + Rating', async () => {
+    const actor = makeActor();
+    actor.system.pilot = 3;
+    actor.items.get = vi.fn(() => ({ id: 'a1', name: 'Clearsight', system: { rating: 2 } }));
+    await makeHandler(actor).handleActionClick({}, 'autosoft|a1');
+    expect(game.sr4.dialogUtility.openActionDialog)
+      .toHaveBeenCalledWith(actor, 'sr4.vehicle.autonomous: Clearsight', 5);
+  });
+
+  it('treats missing pilot and rating as 0', async () => {
+    const actor = makeActor();
+    actor.items.get = vi.fn(() => ({ id: 'a1', name: 'Clearsight', system: {} }));
+    await makeHandler(actor).handleActionClick({}, 'autosoft|a1');
+    expect(game.sr4.dialogUtility.openActionDialog)
+      .toHaveBeenCalledWith(actor, 'sr4.vehicle.autonomous: Clearsight', 0);
+  });
+
+  it('does nothing when the autosoft is not found', async () => {
+    const actor = makeActor();
+    actor.items.get = vi.fn(() => undefined);
+    await makeHandler(actor).handleActionClick({}, 'autosoft|gone');
+    expect(game.sr4.dialogUtility.openActionDialog).not.toHaveBeenCalled();
+  });
+});
+
+// -----------------------------------------------------------------------
+// Condition monitor dialog
+// -----------------------------------------------------------------------
+
+describe('monitor-deal', () => {
+  const dialogWait = () => foundry.applications.api.DialogV2.wait;
+
+  function makeMonitorActor() {
+    const actor = makeActor();
+    actor.system.conditionMonitor = { physical: { value: 2, max: 10 } };
+    actor.dealMonitorDamage = vi.fn().mockResolvedValue(undefined);
+    actor.resetMonitor = vi.fn().mockResolvedValue(undefined);
+    return actor;
+  }
+
+  async function openDialog(actor, track = 'physical') {
+    await makeHandler(actor).handleActionClick({}, `monitor-deal|${track}`);
+    return dialogWait().mock.calls[0]?.[0];
+  }
+
+  function buttonWithInput(value) {
+    return { form: { querySelector: vi.fn(() => ({ value })) } };
+  }
+
+  it('shows the track state in the dialog title', async () => {
+    const config = await openDialog(makeMonitorActor());
+    expect(config.window.title).toBe('sr4.hud.monitor.physical — 2/10');
+  });
+
+  it('deals the entered amount of damage', async () => {
+    const actor = makeMonitorActor();
+    const config = await openDialog(actor);
+    await config.buttons.find(b => b.action === 'deal').callback({}, buttonWithInput('3'));
+    expect(actor.dealMonitorDamage).toHaveBeenCalledWith('physical', 3);
+  });
+
+  it.each([['-2'], ['abc'], ['']])('clamps the invalid input %j to 0 damage', async (input) => {
+    const actor = makeMonitorActor();
+    const config = await openDialog(actor);
+    await config.buttons.find(b => b.action === 'deal').callback({}, buttonWithInput(input));
+    expect(actor.dealMonitorDamage).toHaveBeenCalledWith('physical', 0);
+  });
+
+  it('resets the track via the reset button', async () => {
+    const actor = makeMonitorActor();
+    const config = await openDialog(actor);
+    await config.buttons.find(b => b.action === 'reset').callback();
+    expect(actor.resetMonitor).toHaveBeenCalledWith('physical');
+  });
+
+  it('opens no dialog for a track the actor does not have', async () => {
+    await openDialog(makeMonitorActor(), 'stun');
+    expect(dialogWait()).not.toHaveBeenCalled();
+  });
+});
+
+// -----------------------------------------------------------------------
+// Effects
+// -----------------------------------------------------------------------
+
+describe('effects', () => {
+  it('toggles an actor effect and refreshes the HUD', async () => {
+    const actor = makeActor();
+    actor.toggleEffect = vi.fn().mockResolvedValue(undefined);
+    await makeHandler(actor).handleActionClick({}, 'effectToggle|e1');
+    expect(actor.toggleEffect).toHaveBeenCalledWith('e1');
+    expect(game.tokenActionHud.update).toHaveBeenCalled();
+  });
+
+  it('Ctrl+Click deletes the effect instead of toggling it', async () => {
+    const effect = { delete: vi.fn().mockResolvedValue(undefined) };
+    const actor = makeActor();
+    actor.toggleEffect = vi.fn();
+    actor.effects = { get: vi.fn(() => effect) };
+    await makeHandler(actor).handleActionClick({ ctrlKey: true }, 'effectToggle|e1');
+    expect(actor.effects.get).toHaveBeenCalledWith('e1');
+    expect(effect.delete).toHaveBeenCalled();
+    expect(actor.toggleEffect).not.toHaveBeenCalled();
+    expect(game.tokenActionHud.update).toHaveBeenCalled();
+  });
+
+  it('Ctrl+Click on a vanished effect does not throw', async () => {
+    const actor = makeActor();
+    actor.effects = { get: vi.fn(() => undefined) };
+    await expect(makeHandler(actor).handleActionClick({ ctrlKey: true }, 'effectToggle|gone')).resolves.toBeUndefined();
+  });
+
+  it('applies an effect template and refreshes the HUD', async () => {
+    const actor = makeActor();
+    actor.applyEffectTemplate = vi.fn().mockResolvedValue(undefined);
+    await makeHandler(actor).handleActionClick({}, 'effectTemplate|blind');
+    expect(actor.applyEffectTemplate).toHaveBeenCalledWith('blind');
+    expect(game.tokenActionHud.update).toHaveBeenCalled();
+  });
+});
+
+// -----------------------------------------------------------------------
+// Summoning / threading
+// -----------------------------------------------------------------------
+
+describe('summon', () => {
+  it.each([['spirit'], ['sprite']])('starts the summoning flow for a %s', async (entity) => {
+    const actor = makeActor();
+    await makeHandler(actor).handleActionClick({}, `summon|${entity}`);
+    expect(game.sr4.SummoningFlow.start).toHaveBeenCalledWith(actor, entity);
+    expect(game.sr4.SummoningFlow.startWatcher).not.toHaveBeenCalled();
+    expect(game.tokenActionHud.update).toHaveBeenCalled();
+  });
+
+  it('starts the watcher flow for a watcher', async () => {
+    const actor = makeActor();
+    await makeHandler(actor).handleActionClick({}, 'summon|watcher');
+    expect(game.sr4.SummoningFlow.startWatcher).toHaveBeenCalledWith(actor);
+    expect(game.sr4.SummoningFlow.start).not.toHaveBeenCalled();
+  });
+});
+
+describe('threading', () => {
+  it('starts the threading flow and refreshes the HUD', async () => {
+    const actor = makeActor();
+    await makeHandler(actor).handleActionClick({}, 'threading|thread');
+    expect(game.sr4.ThreadingFlow.start).toHaveBeenCalledWith(actor);
+    expect(game.tokenActionHud.update).toHaveBeenCalled();
+  });
+});
+
+describe('unknown action type', () => {
+  it('is ignored', async () => {
+    const actor = makeActor();
+    await expect(makeHandler(actor).handleActionClick({}, 'bogus|x')).resolves.toBeUndefined();
+    expect(actor.update).not.toHaveBeenCalled();
+    expect(game.tokenActionHud.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('weapon without attack skill', () => {
+  it('warns with a localized message naming the weapon', async () => {
+    const actor = makeActor();
+    actor.type = 'character';
+    actor.items.get = vi.fn(() => ({ id: 'w1', name: 'Bow', system: { attackSkill: 'archery' } }));
+    actor.findByAttackSkill = vi.fn(() => undefined);
+
+    await makeHandler(actor).handleActionClick({}, 'weapon|w1');
+
+    expect(ui.notifications.warn).toHaveBeenCalledWith('sr4.hud.weapons.noAttackSkill Bow');
+    expect(game.sr4.dialogUtility.handleAttackRoll).not.toHaveBeenCalled();
+  });
+});

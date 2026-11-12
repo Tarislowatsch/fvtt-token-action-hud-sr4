@@ -8,11 +8,11 @@ A [Token Action HUD Core](https://github.com/Larkinabout/fvtt-token-action-hud-c
 
 The HUD is organised into tabs, each of which can be reordered or hidden through the Token Action HUD Core settings.
 
-- **Basics** – Improvised skill rolls, Initiative Mode switching, Edge rolls and Edge management (add, spend, reset, with guards against over- and under-spending), Soak tests (Willpower, Body, Body + Impact/Ballistic armour), the standard two-attribute tests (Composure, Judge Intentions, Memory, Lift/Carry), vehicle Control Mode, Drone Actions, and a Free Roll dialog for a manual dice pool
+- **Basics** – Improvised skill rolls, Initiative Mode switching, Edge rolls and Edge management (add, spend, reset, with guards against over- and under-spending), Soak tests (Willpower, Body, Body + Impact/Ballistic armour), the standard two-attribute tests (Composure, Judge Intentions, Memory, Lift/Carry), vehicle Control Mode, Drone Actions, a Free Roll dialog for a manual dice pool, and Linked Actors (remove spirits, sprites, and vehicles from their character, from either side)
 - **Active Skills** – grouped by category (Combat, Physical, Social, Technical, Matrix, Magic, Vehicle, Resonance, Misc), sorted alphabetically, with attribute, rating, and specialisation shown in tooltips
 - **Knowledge Skills** – grouped by category (Academic, Street, Language, Hobby, Misc)
 - **Weapons** – Ranged and Melee weapons with damage and AP in tooltips; resolves the correct attack skill automatically. Ctrl+Click toggles equip, Shift+Click reloads
-- **Magic** – spells grouped by category (Combat, Detection, Health, Illusion, Geomancy) with type, range, duration, drain value, element, and area info, plus Spell Actions, Spell Effects, and Summoning (summon spirit or watcher, banish, bind)
+- **Magic** – spells grouped by category (Combat, Detection, Health, Illusion, Geomancy, Manipulation) with type, range, duration, drain value, element, and area info, plus Spell Actions, Spell Effects, and Summoning (summon spirit or watcher, banish, bind)
 - **Matrix** – Cybercombat (Matrix Attack, Jack Out), programs with their actions and effects, Matrix Actions, and Resonance actions (compile, register, and decompile sprites, thread complex forms)
 - **Condition Monitor** – inline Physical / Stun track display with a dialog to deal or reset damage
 - **Actions** – custom Action items with their dice pool pre-calculated from `rating1 + rating2`, additionally grouped into Matrix and Rigging categories
@@ -26,7 +26,7 @@ The HUD is organised into tabs, each of which can be reordered or hidden through
 | Dependency | Minimum version |
 |---|---|
 | Foundry VTT | 14 |
-| Shadowrun 4e system (`shadowrun4e`) | 1.23.0 |
+| Shadowrun 4e system (`shadowrun4e`) | 1.30.0 |
 | Token Action HUD Core | 2.0.0 |
 
 ---
@@ -72,11 +72,14 @@ npm run watch
 # Run the test suite
 npm test
 
+# Run the tests with a coverage report (text + coverage/index.html)
+npm run test:coverage
+
 # Regenerate the Requirements table from module.json
 npm run sync-readme
 ```
 
-The entry point is `src/system-manager.js`. The module registers itself via the `tokenActionHudCoreApiReady` hook and exposes `SR4SystemManager` through the module API. The HUD layout is declared once in `registerDefaults()`; the flat group registry required by the HUD core is derived from it.
+The entry point is `src/system-manager.js`. The module registers itself via the `tokenActionHudCoreApiReady` hook and exposes `SR4SystemManager` through the module API. The HUD layout is declared once in `registerDefaults()`; the flat group registry required by the HUD core is derived from it. Dice pools are computed in `src/utils.js` and shared by the action handler (button labels) and the roll handler (the actual roll), so both always agree.
 
 The Requirements table above is generated from `module.json` — edit the versions there, not in this file. CI keeps the two in sync automatically.
 

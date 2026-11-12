@@ -58,5 +58,13 @@ export const ATTRIBUTE_TESTS = [
   { key: 'liftCarry',       attr1: 'STRENGTH',   attr2: 'BODY' },
 ];
 
+/** Soak modes with their label keys; pools come from soakPools() in utils.js. */
+export const SOAK_MODES = [
+  { mode: 'willpower',      label: 'sr4.hud.soak.willpower' },
+  { mode: 'body',           label: 'sr4.hud.soak.body' },
+  { mode: 'body-impact',    label: 'sr4.hud.soak.bodyImpact' },
+  { mode: 'body-ballistic', label: 'sr4.hud.soak.bodyBallistic' },
+];
+
 /** Action-item category tags (system.category on 'Action' items); fallback when game.sr4.ActionCategory is unavailable. */
 export const ACTION_CATEGORIES = ['MATRIX', 'RIGGING'];

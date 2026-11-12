@@ -121,7 +121,10 @@
         "tab": "Waffen",
         "equip": "Ausrüsten umschalten",
         "equipHint": "Strg+Klick zum An-/Ablegen",
-        "reloadHint": "Shift+Klick zum Nachladen"
+        "reloadHint": "Shift+Klick zum Nachladen",
+        "damage": "SC",
+        "ap": "DK",
+        "noAttackSkill": "Keine Angriffsfertigkeit für {name} gefunden"
       },
       "powers": {
         "tab": "Kräfte",
@@ -142,6 +145,12 @@
         "toggleHint": "Klick zum Umschalten",
         "turn": "Runde",
         "turns": "Runden"
+      },
+      "links": {
+        "tab": "Verknüpfungen",
+        "removeFromOwner": "Vom Besitzer entfernen",
+        "removeFromOwnerTooltip": "Vom besitzenden Charakter lösen; der Akteur bleibt in der Welt erhalten",
+        "removeTooltip": "Vom Charakter entfernen"
       }
     }
   }

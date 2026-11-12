@@ -80,6 +80,12 @@
         "droneActions": "Drone Actions",
         "modeTooltip": "Click to set the vehicle's control mode"
       },
+      "links": {
+        "tab": "Linked Actors",
+        "removeFromOwner": "Remove from Owner",
+        "removeFromOwnerTooltip": "Unlink from the owning character; the actor stays in the world",
+        "removeTooltip": "Remove from this character"
+      },
       "magic": {
         "tab": "Magic",
         "summonSpirit": "Summon Spirit",
@@ -121,7 +127,10 @@
         "tab": "Weapons",
         "equip": "Toggle equip",
         "equipHint": "Ctrl+Click to equip/unequip",
-        "reloadHint": "Shift+Click to reload"
+        "reloadHint": "Shift+Click to reload",
+        "damage": "DMG",
+        "ap": "AP",
+        "noAttackSkill": "No attack skill found for {name}"
       },
       "powers": {
         "tab": "Powers",

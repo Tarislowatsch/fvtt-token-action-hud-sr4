@@ -415,7 +415,7 @@ describe('weapons', () => {
     const weapon = actionsFor(handler, 'weapons-list')[0];
     expect(weapon.name).toBe('Pistol (7/15)');
     expect(weapon.encodedValue).toBe('weapon|w1');
-    expect(weapon.tooltip).toBe('Pistol · DMG: 8 AP: -4\nsr4.hud.weapons.equipHint\nsr4.hud.weapons.reloadHint');
+    expect(weapon.tooltip).toBe('Pistol · sr4.hud.weapons.damage: 8 sr4.hud.weapons.ap: -4\nsr4.hud.weapons.equipHint\nsr4.hud.weapons.reloadHint');
   });
 
   it('omits ammo and reload hint when maxAmmo is 0', async () => {
@@ -428,7 +428,7 @@ describe('weapons', () => {
 
     const weapon = actionsFor(handler, 'weapons-list')[0];
     expect(weapon.name).toBe('SMG');
-    expect(weapon.tooltip).toBe('SMG · DMG: 6 AP: 0\nsr4.hud.weapons.equipHint');
+    expect(weapon.tooltip).toBe('SMG · sr4.hud.weapons.damage: 6 sr4.hud.weapons.ap: 0\nsr4.hud.weapons.equipHint');
   });
 
   it('marks an equipped ranged weapon with the active css class', async () => {
@@ -451,7 +451,7 @@ describe('weapons', () => {
     const handler = await build(actor);
 
     const weapon = actionsFor(handler, 'weapons-list').find(a => a.id === 'w1');
-    expect(weapon.tooltip).toBe('Katana · DMG: 8 AP: -3\nsr4.hud.weapons.equipHint');
+    expect(weapon.tooltip).toBe('Katana · sr4.hud.weapons.damage: 8 sr4.hud.weapons.ap: -3\nsr4.hud.weapons.equipHint');
   });
 
   it('does not show the reload hint for a melee weapon', async () => {
@@ -852,5 +852,346 @@ describe('vehicle drone actions', () => {
     } finally {
       game.sr4.rigging = rigging;
     }
+  });
+});
+
+// -----------------------------------------------------------------------
+// Linked actors: unlink from the owner side and from the linked side
+// -----------------------------------------------------------------------
+
+describe('basics-links', () => {
+  function makeLinked({ id, type = 'spirit', isOwner = true }) {
+    return { id, uuid: `Actor.${id}`, name: `Linked ${id}`, img: `${id}.png`, type, isOwner };
+  }
+
+  function calledGroups(handler) {
+    return handler.addActions.mock.calls.map(([, g]) => g.id);
+  }
+
+  it('lists the owned spirits, sprites and vehicles of a character', async () => {
+    const actor = makeActor();
+    actor.uuid = 'Actor.char1';
+    game.sr4.linkedActors.findLinkedActors.mockReturnValueOnce([
+      makeLinked({ id: 'spirit1' }),
+      makeLinked({ id: 'drone1', type: 'vehicle' }),
+      makeLinked({ id: 'foreign1', isOwner: false }),
+    ]);
+
+    const handler = await build(actor);
+
+    expect(game.sr4.linkedActors.findLinkedActors).toHaveBeenCalledWith('Actor.char1');
+    const actions = actionsFor(handler, 'basics-links');
+    expect(actions.map(a => a.encodedValue)).toEqual(['unlink|Actor.spirit1', 'unlink|Actor.drone1']);
+    expect(actions[0]).toMatchObject({ name: 'Linked spirit1', img: 'spirit1.png' });
+  });
+
+  it('omits the group for a character without linked actors', async () => {
+    const handler = await build(makeActor());
+
+    expect(calledGroups(handler)).not.toContain('basics-links');
+  });
+
+  it.each([
+    ['spirit', { ownerUuid: 'Actor.char1' }],
+    ['sprite', { ownerUuid: 'Actor.char1' }],
+    ['vehicle', { riggerUuid: 'Actor.char1' }],
+  ])('offers a linked %s to remove itself from its owner', async (type, link) => {
+    const actor = makeActor({ type });
+    actor.uuid = `Actor.${type}1`;
+    actor.isOwner = true;
+    actor.system = { ...actor.system, ...link };
+
+    const handler = await build(actor);
+
+    const actions = actionsFor(handler, 'basics-links');
+    expect(actions).toHaveLength(1);
+    expect(actions[0].encodedValue).toBe(`unlink|Actor.${type}1`);
+    expect(game.sr4.linkedActors.findLinkedActors).not.toHaveBeenCalledWith(`Actor.${type}1`);
+  });
+
+  it('offers nothing to an unlinked spirit', async () => {
+    const actor = makeActor({ type: 'spirit' });
+    actor.isOwner = true;
+    actor.system = { ...actor.system, ownerUuid: '' };
+
+    const handler = await build(actor);
+
+    expect(calledGroups(handler)).not.toContain('basics-links');
+  });
+
+  it('offers nothing to a user who does not own the linked spirit', async () => {
+    const actor = makeActor({ type: 'spirit' });
+    actor.isOwner = false;
+    actor.system = { ...actor.system, ownerUuid: 'Actor.char1' };
+
+    const handler = await build(actor);
+
+    expect(calledGroups(handler)).not.toContain('basics-links');
+  });
+
+  it('omits the group when the system linked actors API is unavailable', async () => {
+    const linkedActors = game.sr4.linkedActors;
+    delete game.sr4.linkedActors;
+    try {
+      const actor = makeActor({ type: 'spirit' });
+      actor.isOwner = true;
+      actor.system = { ...actor.system, ownerUuid: 'Actor.char1' };
+
+      const handler = await build(actor);
+
+      expect(calledGroups(handler)).not.toContain('basics-links');
+    } finally {
+      game.sr4.linkedActors = linkedActors;
+    }
+  });
+});
+
+// -----------------------------------------------------------------------
+// Displayed dice pools (must match what the roll handler rolls)
+// -----------------------------------------------------------------------
+
+describe('displayed dice pools', () => {
+  function makeCharacter() {
+    const actor = makeActor({ attrs: { BODY: 4, WILLPOWER: 3, EDGE: 5, CURRENTEDGE: 2, AGILITY: 6 } });
+    actor.system.armor = { ballistic: 5, impact: 2 };
+    return actor;
+  }
+
+  it.each([
+    ['soak-willpower',      3],
+    ['soak-body',           4],
+    ['soak-body-impact',    6],
+    ['soak-body-ballistic', 9],
+  ])('shows the %s pool in name and tooltip', async (id, dice) => {
+    const handler = await build(makeCharacter());
+    const action = actionsFor(handler, 'basics-soak').find(a => a.id === id);
+    expect(action.name).toMatch(new RegExp(`\\(${dice}\\)$`));
+    expect(action.tooltip).toContain(`${dice}`);
+  });
+
+  it('treats missing armor as 0 in the soak pools', async () => {
+    const actor = makeCharacter();
+    delete actor.system.armor;
+    const handler = await build(actor);
+    const action = actionsFor(handler, 'basics-soak').find(a => a.id === 'soak-body-ballistic');
+    expect(action.name).toMatch(/\(4\)$/);
+  });
+
+  it('shows double Edge in the edge roll button', async () => {
+    const handler = await build(makeCharacter());
+    expect(actionsFor(handler, 'basics-edge-rolls')[0].name).toBe('sr4.hud.edge.double (10)');
+  });
+
+  it('shows current/max Edge on the add button', async () => {
+    const handler = await build(makeCharacter());
+    const add = actionsFor(handler, 'basics-edge-management').find(a => a.id === 'edge-add');
+    expect(add.name).toBe('sr4.hud.edge.add (2/5)');
+  });
+
+  it('shows attribute - 1 in the improvised roll tooltip', async () => {
+    const handler = await build(makeCharacter());
+    const agility = actionsFor(handler, 'basics-improvise').find(a => a.id === 'AGILITY');
+    expect(agility.tooltip).toBe('sr4.hud.improvisedRoll sr4.stats.AGILITY 6 - 1');
+  });
+});
+
+// -----------------------------------------------------------------------
+// Condition monitor (characters)
+// -----------------------------------------------------------------------
+
+describe('monitor', () => {
+  it('lists physical and stun tracks with their state', async () => {
+    const actor = makeActor();
+    actor.system.conditionMonitor = { physical: { value: 1, max: 10 }, stun: { value: 4, max: 9 } };
+    const handler = await build(actor);
+
+    const actions = actionsFor(handler, 'monitor-list');
+    expect(actions.map(a => [a.id, a.name, a.encodedValue])).toEqual([
+      ['physical', 'sr4.hud.monitor.physical: 1/10', 'monitor-deal|physical'],
+      ['stun',     'sr4.hud.monitor.stun: 4/9',      'monitor-deal|stun'],
+    ]);
+  });
+
+  it('skips tracks the actor does not have', async () => {
+    const actor = makeActor();
+    actor.system.conditionMonitor = { physical: { value: 0, max: 8 } };
+    const handler = await build(actor);
+
+    expect(actionsFor(handler, 'monitor-list').map(a => a.id)).toEqual(['physical']);
+  });
+});
+
+// -----------------------------------------------------------------------
+// Vehicle stats, autosofts and monitor
+// -----------------------------------------------------------------------
+
+describe('vehicle basics', () => {
+  function makeVehicle(items = []) {
+    const actor = makeActor({ type: 'vehicle', items });
+    actor.system = {
+      conditionMonitor: { physical: { value: 3, max: 12 }, stun: { value: 0, max: 0 } },
+      controlMode: 'autonomous', pilot: 2, body: 3, armor: 1, sensor: 3, handling: 0,
+    };
+    return actor;
+  }
+
+  it('lists the vehicle stats as free roll buttons', async () => {
+    const handler = await build(makeVehicle());
+    const actions = actionsFor(handler, 'basics-improvise');
+    expect(actions.map(a => a.name)).toEqual([
+      'sr4.vehicle.body (3)', 'sr4.vehicle.pilot (2)', 'sr4.vehicle.armor (1)',
+      'sr4.vehicle.sensor (3)', 'sr4.vehicle.handling (0)',
+    ]);
+    expect(actions.every(a => a.encodedValue === 'freeRoll|free-roll')).toBe(true);
+  });
+
+  it('shows Pilot + Rating on autosoft buttons', async () => {
+    const autosoft = { id: 'as1', type: 'Autosoft', name: 'Clearsight', img: null, system: { rating: 3 } };
+    const handler = await build(makeVehicle([autosoft]));
+    const [action] = actionsFor(handler, 'basics-free-roll');
+    expect(action).toMatchObject({
+      id: 'as1', name: 'Clearsight (5)', encodedValue: 'autosoft|as1', img: 'icons/svg/d20.svg',
+    });
+  });
+
+  it('omits the autosoft group when the vehicle has none', async () => {
+    const handler = await build(makeVehicle());
+    const groups = handler.addActions.mock.calls.map(([, g]) => g.id);
+    expect(groups).not.toContain('basics-free-roll');
+  });
+
+  it('only shows the physical track for vehicles', async () => {
+    const handler = await build(makeVehicle());
+    expect(actionsFor(handler, 'monitor-list')).toEqual([expect.objectContaining({
+      id: 'physical', name: 'sr4.hud.monitor.physical: 3/12', encodedValue: 'monitor-deal|physical',
+    })]);
+  });
+});
+
+// -----------------------------------------------------------------------
+// Sorting
+// -----------------------------------------------------------------------
+
+describe('sorting', () => {
+  it('sorts skills alphabetically by their localized label within a category', async () => {
+    const skill = (id, name, label) => ({
+      id, type: 'Skill', name, img: null,
+      system: { type: 'active', rating: 1, category: 'combat', attribute: 'AGILITY', label },
+    });
+    const actor = makeActor({ items: [skill('s1', 'Zeta'), skill('s2', 'Ignored', 'Alpha'), skill('s3', 'Mid')] });
+    const handler = await build(actor);
+
+    expect(actionsFor(handler, 'skills-combat').map(a => a.id)).toEqual(['s2', 's3', 's1']);
+  });
+
+  it('sorts spells alphabetically within a category', async () => {
+    const spell = (id, name) => ({ id, type: 'Spell', name, img: null, system: { category: 'HEALTH' } });
+    const actor = makeActor({ attrs: { MAGIC: 4 }, items: [spell('b', 'Heal'), spell('a', 'Antidote')] });
+    const handler = await build(actor);
+
+    expect(actionsFor(handler, 'spells-health').map(a => a.id)).toEqual(['a', 'b']);
+  });
+
+  it('sorts programs alphabetically', async () => {
+    const program = (id, name) => ({ id, type: 'Program', name, img: null, system: { complexform: false } });
+    const actor = makeActor({ items: [program('p2', 'Stealth'), program('p1', 'Browse')] });
+    const handler = await build(actor);
+
+    expect(actionsFor(handler, 'matrix-list').map(a => a.id)).toEqual(['p1', 'p2']);
+  });
+
+  it('sorts categorised actions alphabetically', async () => {
+    const action = (id, name) => ({ id, type: 'Action', name, img: null, system: { category: 'RIGGING' } });
+    const actor = makeActor({ items: [action('a2', 'Ram'), action('a1', 'Evade')] });
+    const handler = await build(actor);
+
+    expect(actionsFor(handler, 'actions-category-rigging').map(a => a.id)).toEqual(['a1', 'a2']);
+  });
+});
+
+// -----------------------------------------------------------------------
+// Effect templates and durations
+// -----------------------------------------------------------------------
+
+describe('effect templates', () => {
+  function withTemplates(templates, fn) {
+    const effects = game.sr4.effects;
+    game.sr4.effects = { getAllEffectTemplates: () => templates };
+    return fn().finally(() => { game.sr4.effects = effects; });
+  }
+
+  it('lists templates with an apply hint and duration', () => withTemplates(
+    [{ key: 'blind', name: 'Blind', img: null, changes: [{ value: '-6' }], duration: { turns: 3 } }],
+    async () => {
+      const handler = await build(makeActor());
+      const [action] = actionsFor(handler, 'effects-templates');
+      expect(action).toMatchObject({ id: 'effect-blind-add', encodedValue: 'effectTemplate|blind', img: 'icons/svg/aura.svg' });
+      expect(action.tooltip).toBe('Blind · -6 (3 sr4.hud.effects.turns)\nsr4.hud.effects.applyHint');
+    },
+  ));
+
+  it('uses the singular unit for a one-turn duration', () => withTemplates(
+    [{ key: 'stun', name: 'Stunned', changes: [{ value: '2' }], duration: { turns: 1 } }],
+    async () => {
+      const handler = await build(makeActor());
+      expect(actionsFor(handler, 'effects-templates')[0].tooltip)
+        .toBe('Stunned · +2 (1 sr4.hud.effects.turn)\nsr4.hud.effects.applyHint');
+    },
+  ));
+
+  it('keeps non-numeric change values as they are', () => withTemplates(
+    [{ key: 'x', name: 'Odd', changes: [{ value: 'upgrade' }] }],
+    async () => {
+      const handler = await build(makeActor());
+      expect(actionsFor(handler, 'effects-templates')[0].tooltip).toBe('Odd · upgrade\nsr4.hud.effects.applyHint');
+    },
+  ));
+});
+
+// -----------------------------------------------------------------------
+// Labels and group placement fixed after the refactoring
+// -----------------------------------------------------------------------
+
+describe('soak labels', () => {
+  it('uses single spacing in names and tooltips', async () => {
+    const actor = makeActor({ attrs: { BODY: 4, WILLPOWER: 3 } });
+    actor.system.armor = { ballistic: 5, impact: 2 };
+    const handler = await build(actor);
+
+    const soak = actionsFor(handler, 'basics-soak').filter(a => a.id.startsWith('soak-'));
+    expect(soak.map(a => [a.name, a.tooltip])).toEqual([
+      ['sr4.hud.soak.willpower (3)',     'sr4.hud.soak.willpower · 3 sr4.skills.dice'],
+      ['sr4.hud.soak.body (4)',          'sr4.hud.soak.body · 4 sr4.skills.dice'],
+      ['sr4.hud.soak.bodyImpact (6)',    'sr4.hud.soak.bodyImpact · 4 + 2 = 6'],
+      ['sr4.hud.soak.bodyBallistic (9)', 'sr4.hud.soak.bodyBallistic · 4 + 5 = 9'],
+    ]);
+  });
+});
+
+describe('autosoft tooltip', () => {
+  it('uses localized Pilot and Rating labels', async () => {
+    const actor = makeActor({ type: 'vehicle', items: [
+      { id: 'as1', type: 'Autosoft', name: 'Clearsight', img: null, system: { rating: 3 } },
+    ] });
+    actor.system = { conditionMonitor: null, controlMode: 'autonomous', pilot: 2 };
+    const handler = await build(actor);
+
+    expect(actionsFor(handler, 'basics-free-roll')[0].tooltip)
+      .toBe('sr4.vehicle.autonomous: sr4.vehicle.pilot 2 + sr4.hud.rating 3');
+  });
+});
+
+describe('spell-linked actions and effects', () => {
+  it('are nested under the magic tab', async () => {
+    const spell = {
+      id: 'sp1', type: 'Spell', name: 'Armor', img: null, system: { category: 'MANIPULATION' },
+      effects: { contents: [{ id: 'e1', name: 'Sustained', disabled: false }] },
+    };
+    const linked = { id: 'a1', type: 'Action', name: 'Sustain', img: null, system: { linkedItemId: 'sp1' } };
+    const handler = await build(makeActor({ attrs: { MAGIC: 4 }, items: [spell, linked] }));
+
+    const groups = handler.addActions.mock.calls.map(([, g]) => g);
+    expect(groups).toContainEqual({ id: 'spells-actions', nestId: 'magic_spells-actions', type: 'system' });
+    expect(groups).toContainEqual({ id: 'spells-effects', nestId: 'magic_spells-effects', type: 'system' });
   });
 });

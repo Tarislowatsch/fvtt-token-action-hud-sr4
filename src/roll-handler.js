@@ -2,8 +2,17 @@
  * @fileoverview Roll Handler — Token Action HUD SR4
  */
 
-import { loc, collectArmor } from './system-manager.js';
-import { ATTRIBUTE_TESTS, ACTION_CATEGORIES } from './constants.js';
+import {
+  loc,
+  fmt,
+  doubleEdgePool,
+  soakPools,
+  attributeTestPool,
+  autosoftPool,
+  findActiveCombatant,
+  actionCategories,
+} from './utils.js';
+import { ATTRIBUTE_TESTS, SOAK_MODES } from './constants.js';
 
 export function createRollHandler(coreModule) {
   return class SR4RollHandler extends coreModule.api.RollHandler {
@@ -12,40 +21,52 @@ export function createRollHandler(coreModule) {
     async handleActionClick(event, encodedValue) {
       const [type, id] = encodedValue.split('|');
       const actor = this.actor;
+      const sr4 = game.sr4;
 
-      if (event.ctrlKey && type === 'effectToggle') return this.#deleteEffect(actor, id);
+      if (event.ctrlKey && type === 'effectToggle') return this.#refreshAfter(actor.effects.get(id)?.delete());
       if (event.ctrlKey && type === 'weapon')       return this.#toggleEquip(actor, id);
       if (event.shiftKey && type === 'weapon')      return this.#weaponReloadShortcut(actor, id);
 
       switch (type) {
-        case 'skill':          return this.#rollSkill(actor, id);
-        case 'weapon':         return this.#rollWeapon(actor, id);
-        case 'monitor-deal':   return this.#dealDamage(actor, id);
-        case 'action':         return this.#rollAction(actor, id);
-        case 'spell':          return this.#castSpell(actor, id);
-        case 'edge':           return this.#adjustEdge(actor, id);
-        case 'attribute':      return this.#rollAttribute(actor, id);
-        case 'edgeRoll':       return this.#rollEdge(actor, id);
-        case 'freeRoll':       return this.#dialog.handleFreeRoll();
-        case 'soak':           return this.#rollSoak(actor, id);
-        case 'attrTest':       return this.#rollAttrTest(actor, id);
-        case 'autosoft':       return this.#rollAutosoft(actor, id);
-        case 'controlMode':    return this.#setControlMode(actor, id);
-        case 'realm':          return this.#setRealm(actor, id);
-        case 'droneAction':    return game.sr4.rigging?.openDroneRollDialog?.(actor, id);
-        case 'effectToggle':      return this.#toggleEffect(actor, id);
-        case 'effectTemplate':    return this.#applyTemplate(actor, id);
-        case 'itemEffectToggle':  return this.#toggleItemEffect(actor, id);
-        case 'itemSheet':         return this.#openItemSheet(actor, id);
-        case 'equip':             return this.#toggleEquip(actor, id);
-        case 'summon':            return this.#summon(actor, id);
-        case 'threading':        return this.#threadComplexForm(actor);
-        case 'banish':            return this.#banishSpirit(actor);
-        case 'decompile':         return this.#decompileSprite(actor);
-        case 'bind':              return this.#bind(actor, id);
-        case 'matrixAttack':      return this.#matrixAttack(actor);
-        case 'jackOut':           return this.#jackOut(actor);
+        case 'skill':            return this.#rollSkill(actor, id);
+        case 'weapon':           return this.#rollWeapon(actor, id);
+        case 'monitor-deal':     return this.#dealDamage(actor, id);
+        case 'action':           return this.#rollAction(actor, id);
+        case 'spell':            return this.#castSpell(actor, id);
+        case 'edge':             return this.#adjustEdge(actor, id);
+        case 'attribute':        return this.#rollAttribute(actor, id);
+        case 'edgeRoll':         return this.#rollEdge(actor);
+        case 'freeRoll':         return this.#dialog.handleFreeRoll();
+        case 'soak':             return this.#rollSoak(actor, id);
+        case 'attrTest':         return this.#rollAttrTest(actor, id);
+        case 'autosoft':         return this.#rollAutosoft(actor, id);
+        case 'controlMode':      return this.#refreshAfter(actor.update({ 'system.controlMode': id }));
+        case 'realm':            return this.#setRealm(actor, id);
+        case 'droneAction':      return sr4.rigging?.openDroneRollDialog?.(actor, id);
+        case 'effectToggle':     return this.#refreshAfter(actor.toggleEffect(id));
+        case 'effectTemplate':   return this.#refreshAfter(actor.applyEffectTemplate(id));
+        case 'itemEffectToggle': return this.#toggleItemEffect(actor, id);
+        case 'itemSheet':        return this.#openItemSheet(actor, id);
+        case 'equip':            return this.#toggleEquip(actor, id);
+        case 'summon':           return this.#refreshAfter(id === 'watcher'
+                                   ? sr4.SummoningFlow.startWatcher(actor)
+                                   : sr4.SummoningFlow.start(actor, id));
+        case 'threading':        return this.#refreshAfter(sr4.ThreadingFlow.start(actor));
+        case 'banish':           return this.#refreshAfter(sr4.DismissalFlow.start(actor, 'spirit'));
+        case 'decompile':        return this.#refreshAfter(sr4.DismissalFlow.start(actor, 'sprite'));
+        case 'bind':             return this.#refreshAfter(sr4.BindingFlow.startTargeted(actor, id));
+        case 'matrixAttack':     return this.#refreshAfter(sr4.CybercombatFlow.start(actor));
+        case 'jackOut':          return this.#refreshAfter(sr4.CybercombatFlow.jackOut(actor));
+        case 'unlink':           return this.#unlink(id);
       }
+    }
+
+    #updateHud() { game.tokenActionHud?.update?.(); }
+
+    /** Waits for an action that changes actor or world state, then redraws the HUD. */
+    async #refreshAfter(pending) {
+      await pending;
+      this.#updateHud();
     }
 
     // -----------------------------------------------------------------------
@@ -55,12 +76,10 @@ export function createRollHandler(coreModule) {
     async #rollAutosoft(actor, autosoftId) {
       const autosoft = actor.items.get(autosoftId);
       if (!autosoft) return;
-      const pilot = actor.system.pilot ?? 0;
-      const rating = autosoft.system.rating ?? 0;
       this.#dialog.openActionDialog(
         actor,
         `${loc('sr4.vehicle.autonomous')}: ${autosoft.name}`,
-        pilot + rating
+        autosoftPool(actor, autosoft).total
       );
     }
 
@@ -75,7 +94,7 @@ export function createRollHandler(coreModule) {
       if (!weapon) return;
 
       if (weapon.type === 'Ranged Weapon' && weapon.system.maxAmmo > 0) {
-        return this.#reloadWeapon(actor, weaponId);
+        return this.#refreshAfter(game.sr4.reloadWeapon(actor, weaponId));
       }
       return this.#rollWeapon(actor, weaponId);
     }
@@ -89,20 +108,13 @@ export function createRollHandler(coreModule) {
       }
 
       const skill = actor.findByAttackSkill(weapon.system.attackSkill);
-      if (!skill) return ui.notifications?.warn(`No attack skill found for ${weapon.name}`);
+      if (!skill) return ui.notifications?.warn(fmt('sr4.hud.weapons.noAttackSkill', { name: weapon.name }));
 
       await this.#dialog.handleAttackRoll(actor, skill.name, weapon);
     }
 
-    async #setControlMode(actor, mode) {
-      await actor.update({ 'system.controlMode': mode });
-      this.#updateHud();
-    }
-
     async #setRealm(actor, realm) {
-      const combatant = game.combat?.combatants.find(
-        c => (this.token && c.tokenId === this.token.id) || c.actor?.id === actor.id
-      );
+      const combatant = findActiveCombatant(actor, this.token);
 
       if (combatant) {
         await combatant.setFlag('shadowrun4e', 'realm', realm);
@@ -123,7 +135,7 @@ export function createRollHandler(coreModule) {
     }
 
     // -----------------------------------------------------------------------
-    // Attribute / Edge rolls
+    // Attribute / Edge / Soak / Test rolls
     // -----------------------------------------------------------------------
 
     async #rollAttribute(actor, attribute) {
@@ -131,39 +143,20 @@ export function createRollHandler(coreModule) {
       this.#dialog.openActionDialog(actor, loc(`sr4.stats.${attribute}`), value);
     }
 
-    async #rollEdge(actor, mode) {
-      const edge = actor.getAttribute('EDGE');
-      const dice  = mode === 'double' ? edge * 2 : edge;
-      this.#dialog.openActionDialog(actor, loc('sr4.hud.edge.double'), dice);
+    async #rollEdge(actor) {
+      this.#dialog.openActionDialog(actor, loc('sr4.hud.edge.double'), doubleEdgePool(actor));
     }
 
-    // -----------------------------------------------------------------------
-    // Soak
-    // -----------------------------------------------------------------------
-
     async #rollSoak(actor, mode) {
-      const body = actor.getAttribute('BODY');
-      const will = actor.getAttribute('WILLPOWER');
-
-      const { ballistic, impact } = collectArmor(actor);
-
-      const config = {
-        'willpower':      { label: 'sr4.hud.soak.willpower',     dice: will },
-        'body':           { label: 'sr4.hud.soak.body',          dice: body },
-        'body-impact':    { label: 'sr4.hud.soak.bodyImpact',    dice: body + impact },
-        'body-ballistic': { label: 'sr4.hud.soak.bodyBallistic', dice: body + ballistic },
-      }[mode];
-
-      if (!config) return;
-      this.#dialog.openActionDialog(actor, loc(config.label), config.dice);
+      const soak = SOAK_MODES.find(s => s.mode === mode);
+      if (!soak) return;
+      this.#dialog.openActionDialog(actor, loc(soak.label), soakPools(actor).pools[mode]);
     }
 
     async #rollAttrTest(actor, key) {
       const test = ATTRIBUTE_TESTS.find(t => t.key === key);
       if (!test) return;
-
-      const dice = actor.getAttribute(test.attr1) + actor.getAttribute(test.attr2);
-      this.#dialog.openActionDialog(actor, loc(`sr4.hud.tests.${key}`), dice);
+      this.#dialog.openActionDialog(actor, loc(`sr4.hud.tests.${key}`), attributeTestPool(actor, test).total);
     }
 
     // -----------------------------------------------------------------------
@@ -214,10 +207,8 @@ export function createRollHandler(coreModule) {
 
       const numDice = (action.system.rating1 ?? 0) + (action.system.rating2 ?? 0);
       const category = action.system.category;
-      const categories = Object.values(game.sr4?.ActionCategory ?? {});
-      const isCategorised = (categories.length ? categories : ACTION_CATEGORIES).includes(category);
 
-      if (isCategorised && this.#dialog.openMatrixActionDialog) {
+      if (actionCategories().includes(category) && this.#dialog.openMatrixActionDialog) {
         return this.#dialog.openMatrixActionDialog(actor, action.name, numDice, category);
       }
       this.#dialog.openActionDialog(actor, action.name, numDice);
@@ -252,33 +243,14 @@ export function createRollHandler(coreModule) {
     }
 
     // -----------------------------------------------------------------------
-    // Effects
+    // Items / Effects
     // -----------------------------------------------------------------------
-
-    #updateHud() { game.tokenActionHud?.update?.(); }
-
-    async #toggleEffect(actor, id) {
-      await actor.toggleEffect(id);
-      this.#updateHud();
-    }
-
-    async #deleteEffect(actor, id) {
-      await actor.effects.get(id)?.delete();
-      this.#updateHud();
-    }
-
-    async #applyTemplate(actor, id) {
-      await actor.applyEffectTemplate(id);
-      this.#updateHud();
-    }
 
     async #toggleItemEffect(actor, compoundId) {
       const [itemId, effectId] = compoundId.split(':');
-      const item = actor.items.get(itemId);
-      const effect = item?.effects.get(effectId);
+      const effect = actor.items.get(itemId)?.effects.get(effectId);
       if (!effect) return;
-      await effect.update({ disabled: !effect.disabled });
-      this.#updateHud();
+      await this.#refreshAfter(effect.update({ disabled: !effect.disabled }));
     }
 
     async #openItemSheet(actor, id) {
@@ -288,52 +260,17 @@ export function createRollHandler(coreModule) {
     async #toggleEquip(actor, itemId) {
       const item = actor.items.get(itemId);
       if (!item) return;
-      await item.update({ 'system.equipped': !item.system.equipped });
-      this.#updateHud();
+      await this.#refreshAfter(item.update({ 'system.equipped': !item.system.equipped }));
     }
 
-    async #reloadWeapon(actor, weaponId) {
-      await game.sr4.reloadWeapon(actor, weaponId);
-      this.#updateHud();
-    }
+    // -----------------------------------------------------------------------
+    // Linked actors
+    // -----------------------------------------------------------------------
 
-    async #summon(actor, entityType) {
-      if (entityType === 'watcher') {
-        await game.sr4.SummoningFlow.startWatcher(actor);
-      } else {
-        await game.sr4.SummoningFlow.start(actor, entityType);
-      }
-      this.#updateHud();
-    }
-
-    async #threadComplexForm(actor) {
-      await game.sr4.ThreadingFlow.start(actor);
-      this.#updateHud();
-    }
-
-    async #banishSpirit(actor) {
-      await game.sr4.DismissalFlow.start(actor, 'spirit');
-      this.#updateHud();
-    }
-
-    async #decompileSprite(actor) {
-      await game.sr4.DismissalFlow.start(actor, 'sprite');
-      this.#updateHud();
-    }
-
-    async #bind(actor, entityType) {
-      await game.sr4.BindingFlow.startTargeted(actor, entityType);
-      this.#updateHud();
-    }
-
-    async #matrixAttack(actor) {
-      await game.sr4.CybercombatFlow.start(actor);
-      this.#updateHud();
-    }
-
-    async #jackOut(actor) {
-      await game.sr4.CybercombatFlow.jackOut(actor);
-      this.#updateHud();
+    async #unlink(uuid) {
+      const linked = await fromUuid(uuid);
+      if (!linked) return ui.notifications?.warn(loc('sr4.ui.linkedActorNotFound'));
+      if (await game.sr4.linkedActors?.confirmAndUnlink(linked)) this.#updateHud();
     }
   };
 }

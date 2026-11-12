@@ -5,5 +5,10 @@ export default defineConfig({
     environment: 'node',
     setupFiles: ['./test/setup.mjs'],
     clearMocks: true,
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.js'],
+      reporter: ['text', 'html'],
+    },
   },
 });

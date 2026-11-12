@@ -1,6 +1,9 @@
 # dependencies
 /node_modules
 
+# test coverage reports
+/coverage
+
 # environment file
 .env
 .claude

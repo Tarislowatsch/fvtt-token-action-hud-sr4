@@ -2,7 +2,15 @@
  * @fileoverview Action Handler — Token Action HUD SR4
  */
 
-import { loc, collectArmor } from './system-manager.js';
+import {
+  loc,
+  doubleEdgePool,
+  soakPools,
+  attributeTestPool,
+  autosoftPool,
+  findActiveCombatant,
+  actionCategories,
+} from './utils.js';
 import {
   ACTIVE_SKILL_CATEGORIES,
   KNOWLEDGE_SKILL_CATEGORIES,
@@ -11,7 +19,7 @@ import {
   ATTRIBUTE_TESTS,
   CONTROL_MODES,
   DRONE_ACTIONS,
-  ACTION_CATEGORIES,
+  SOAK_MODES,
 } from './constants.js';
 
 const CONTROL_MODE_ICONS = {
@@ -32,12 +40,36 @@ const REALM_ICONS = {
   astral:   'icons/svg/eye.svg',
 };
 
+// Fixed buttons: name and tooltip come from `${key}` and `${key}Tooltip`.
+const SUMMONING_ACTIONS = [
+  { id: 'summon-spirit',  key: 'sr4.hud.magic.summonSpirit',  img: 'icons/svg/aura.svg',    encodedValue: 'summon|spirit' },
+  { id: 'summon-watcher', key: 'sr4.hud.magic.summonWatcher', img: 'icons/svg/eye.svg',     encodedValue: 'summon|watcher' },
+  { id: 'banish-spirit',  key: 'sr4.hud.magic.banishSpirit',  img: 'icons/svg/falling.svg', encodedValue: 'banish|spirit' },
+  { id: 'bind-spirit',    key: 'sr4.hud.magic.bindSpirit',    img: 'icons/svg/net.svg',     encodedValue: 'bind|spirit' },
+];
+
+const RESONANCE_ACTIONS = [
+  { id: 'compile-sprite',      key: 'sr4.hud.matrix.compileSprite',     img: 'icons/svg/aura.svg',      encodedValue: 'summon|sprite' },
+  { id: 'thread-complex-form', key: 'sr4.hud.matrix.threadComplexForm', img: 'icons/svg/d20.svg',       encodedValue: 'threading|thread' },
+  { id: 'decompile-sprite',    key: 'sr4.hud.matrix.decompileSprite',   img: 'icons/svg/downgrade.svg', encodedValue: 'decompile|sprite' },
+  { id: 'bind-sprite',         key: 'sr4.hud.matrix.bindSprite',        img: 'icons/svg/net.svg',       encodedValue: 'bind|sprite' },
+];
+
+const MATRIX_ATTACK_ACTION = { id: 'matrix-attack',   key: 'sr4.hud.matrix.attack',  img: 'icons/svg/lightning.svg', encodedValue: 'matrixAttack|attack' };
+const JACK_OUT_ACTION      = { id: 'matrix-jack-out', key: 'sr4.hud.matrix.jackOut', img: 'icons/svg/net.svg',       encodedValue: 'jackOut|jackOut' };
+
+function fixedAction({ key, ...action }) {
+  return { ...action, name: loc(key), tooltip: loc(`${key}Tooltip`) };
+}
+
 export function createActionHandler(coreModule) {
   return class SR4ActionHandler extends coreModule.api.ActionHandler {
 
     async buildSystemActions(_groupIds) {
       const actor = this.actor;
       if (!actor) return;
+
+      this.#buildLinks(actor);
 
       if (actor.type === 'vehicle') {
         await this.#buildVehicle(actor);
@@ -87,10 +119,11 @@ export function createActionHandler(coreModule) {
       };
     }
 
-    #addLinkedActionsAndEffects(actor, items, groupPrefix) {
+    /** Adds `${groupPrefix}-actions` / `-effects` under the tab `parent` (they differ for spells: magic_spells-*). */
+    #addLinkedActionsAndEffects(actor, items, parent, groupPrefix = parent) {
       const { linkedActions, effectActions } = this.#collectLinkedActionsAndEffects(actor, items);
-      if (linkedActions.length) this.#addToGroup(linkedActions, groupPrefix, `${groupPrefix}-actions`);
-      if (effectActions.length) this.#addToGroup(effectActions, groupPrefix, `${groupPrefix}-effects`);
+      if (linkedActions.length) this.#addToGroup(linkedActions, parent, `${groupPrefix}-actions`);
+      if (effectActions.length) this.#addToGroup(effectActions, parent, `${groupPrefix}-effects`);
     }
 
     /** Filter items into per-category groups, sort, map to actions, and add non-empty groups. */
@@ -105,12 +138,6 @@ export function createActionHandler(coreModule) {
 
         this.#addToGroup(actions, parentId, groupIdFor(category));
       }
-    }
-
-    /** Action-item category tags, preferring the system API over the static fallback list. */
-    #actionCategories() {
-      const api = Object.values(game.sr4?.ActionCategory ?? {});
-      return api.length ? api : ACTION_CATEGORIES;
     }
 
     #matrixCategoryValue() {
@@ -128,12 +155,44 @@ export function createActionHandler(coreModule) {
     }
 
     // -----------------------------------------------------------------------
+    // Linked actors (spirits, sprites, vehicles)
+    // -----------------------------------------------------------------------
+
+    #buildLinks(actor) {
+      const api = game.sr4?.linkedActors;
+      if (!api) return;
+
+      const ownerField = api.OWNER_LINK_FIELDS[actor.type];
+      if (ownerField) {
+        if (!actor.isOwner || !actor.system?.[ownerField]) return;
+        this.#addToGroup([{
+          id:           'unlink-self',
+          name:         loc('sr4.hud.links.removeFromOwner'),
+          img:          'icons/svg/cancel.svg',
+          encodedValue: `unlink|${actor.uuid}`,
+          tooltip:      loc('sr4.hud.links.removeFromOwnerTooltip'),
+        }], 'basics', 'basics-links');
+        return;
+      }
+
+      const actions = api.findLinkedActors(actor.uuid)
+        .filter(linked => linked.isOwner)
+        .map(linked => ({
+          id:           `unlink-${linked.id}`,
+          name:         linked.name,
+          img:          linked.img,
+          encodedValue: `unlink|${linked.uuid}`,
+          tooltip:      `${loc('sr4.hud.links.removeTooltip')}: ${linked.name}`,
+        }));
+      if (actions.length) this.#addToGroup(actions, 'basics', 'basics-links');
+    }
+
+    // -----------------------------------------------------------------------
     // Vehicle
     // -----------------------------------------------------------------------
 
     async #buildVehicle(actor) {
       const sys = actor.system;
-      const pilot = sys.pilot ?? 0;
 
       this.#buildControlModes(actor);
       await this.#buildDroneActions(actor);
@@ -149,13 +208,16 @@ export function createActionHandler(coreModule) {
 
       const autosoftActions = actor.items
         .filter(i => i.type === 'Autosoft')
-        .map(a => ({
-          id:           a.id,
-          name:         `${a.name} (${pilot + (a.system.rating ?? 0)})`,
-          img:          a.img ?? 'icons/svg/d20.svg',
-          encodedValue: `autosoft|${a.id}`,
-          tooltip:      `${loc('sr4.vehicle.autonomous')}: Pilot ${pilot} + Rating ${a.system.rating ?? 0}`,
-        }));
+        .map(a => {
+          const { pilot, rating, total } = autosoftPool(actor, a);
+          return {
+            id:           a.id,
+            name:         `${a.name} (${total})`,
+            img:          a.img ?? 'icons/svg/d20.svg',
+            encodedValue: `autosoft|${a.id}`,
+            tooltip:      `${loc('sr4.vehicle.autonomous')}: ${loc('sr4.vehicle.pilot')} ${pilot} + ${loc('sr4.hud.rating')} ${rating}`,
+          };
+        });
       if (autosoftActions.length) {
         this.#addToGroup(autosoftActions, 'basics', 'basics-free-roll');
       }
@@ -230,7 +292,7 @@ export function createActionHandler(coreModule) {
     }
 
     #buildDevice(actor) {
-      this.#addMatrixCombatActions(actor, false);
+      this.#addMatrixCombatActions(false);
       this.#buildMonitor(actor);
       this.#buildEffects(actor);
     }
@@ -265,11 +327,9 @@ export function createActionHandler(coreModule) {
       for (const item of items) {
         for (const a of actionsByLinkedId.get(item.id) ?? []) {
           linkedActions.push({
-            id:           a.id,
-            name:         `${item.name}: ${a.name}`,
-            img:          a.img ?? 'icons/svg/d20.svg',
-            encodedValue: `action|${a.id}`,
-            tooltip:      `${a.name} · ${a.system.actionType ?? ''}`,
+            ...this.#actionButton(a),
+            name: `${item.name}: ${a.name}`,
+            img:  a.img ?? 'icons/svg/d20.svg',
           });
         }
 
@@ -309,7 +369,7 @@ export function createActionHandler(coreModule) {
       const realms = api.getAvailableRealms(actor);
       if (realms.length < 2) return;
 
-      const combatant = this.#activeCombatant(actor);
+      const combatant = findActiveCombatant(actor, this.token);
       const current = combatant
         ? api.getCombatantRealm(combatant)
         : (actor.system.realm ?? 'physical');
@@ -324,12 +384,6 @@ export function createActionHandler(coreModule) {
       }));
 
       this.#addToGroup(actions, 'basics', 'basics-realm');
-    }
-
-    #activeCombatant(actor) {
-      return game.combat?.combatants.find(
-        c => (this.token && c.tokenId === this.token.id) || c.actor?.id === actor.id
-      );
     }
 
     #buildAttributes(actor) {
@@ -348,11 +402,9 @@ export function createActionHandler(coreModule) {
     }
 
     #buildEdgeRolls(actor) {
-      const edge = actor.getAttribute('EDGE');
-
       this.#addToGroup([{
         id:           'edge-roll-double',
-        name:         `${loc('sr4.hud.edge.double')} (${edge * 2})`,
+        name:         `${loc('sr4.hud.edge.double')} (${doubleEdgePool(actor)})`,
         img:          'icons/svg/explosion.svg',
         encodedValue: 'edgeRoll|double',
         tooltip:      loc('sr4.hud.edge.doubleTooltip'),
@@ -360,17 +412,28 @@ export function createActionHandler(coreModule) {
     }
 
     #buildSoak(actor) {
-      const body     = actor.getAttribute('BODY');
-      const will     = actor.getAttribute('WILLPOWER');
+      const { body, will, ballistic, impact, pools } = soakPools(actor);
+      // The label already names the parts ("BOD + Impact Armor"), the tooltip adds their values.
+      const parts = {
+        'willpower':      [will],
+        'body':           [body],
+        'body-impact':    [body, impact],
+        'body-ballistic': [body, ballistic],
+      };
 
-      const { ballistic, impact } = collectArmor(actor);
-
-      const soakActions = [
-        { id: 'soak-willpower',      name: `${loc('sr4.hud.soak.willpower')}    (${will})`,           tooltip: `${loc('sr4.hud.soak.willpower')}    · ${will} ${loc('sr4.skills.dice')}`,                                  encodedValue: 'soak|willpower' },
-        { id: 'soak-body',           name: `${loc('sr4.hud.soak.body')}         (${body})`,           tooltip: `${loc('sr4.hud.soak.body')}         · ${body} ${loc('sr4.skills.dice')}`,                                  encodedValue: 'soak|body' },
-        { id: 'soak-body-impact',    name: `${loc('sr4.hud.soak.bodyImpact')}   (${body + impact})`,  tooltip: `${loc('sr4.hud.soak.bodyImpact')}   · BODY ${body} + Impact ${impact} = ${body + impact}`,                  encodedValue: 'soak|body-impact' },
-        { id: 'soak-body-ballistic', name: `${loc('sr4.hud.soak.bodyBallistic')}(${body + ballistic})`,tooltip: `${loc('sr4.hud.soak.bodyBallistic')} · BODY ${body} + Ballistic ${ballistic} = ${body + ballistic}`,       encodedValue: 'soak|body-ballistic' },
-      ].map(a => ({ ...a, img: 'icons/svg/shield.svg' }));
+      const soakActions = SOAK_MODES.map(({ mode, label }) => {
+        const pool = pools[mode];
+        const breakdown = parts[mode].length > 1
+          ? `${parts[mode].join(' + ')} = ${pool}`
+          : `${pool} ${loc('sr4.skills.dice')}`;
+        return {
+          id:           `soak-${mode}`,
+          name:         `${loc(label)} (${pool})`,
+          img:          'icons/svg/shield.svg',
+          encodedValue: `soak|${mode}`,
+          tooltip:      `${loc(label)} · ${breakdown}`,
+        };
+      });
 
       const armorActions = actor.items
         .filter(i => i.type === 'Armor')
@@ -380,15 +443,15 @@ export function createActionHandler(coreModule) {
     }
 
     #buildTests(actor) {
-      const actions = ATTRIBUTE_TESTS.map(({ key, attr1, attr2 }) => {
-        const v1 = actor.getAttribute(attr1);
-        const v2 = actor.getAttribute(attr2);
+      const actions = ATTRIBUTE_TESTS.map(test => {
+        const { key, attr1, attr2 } = test;
+        const { v1, v2, total } = attributeTestPool(actor, test);
         return {
           id:           `test-${key}`,
-          name:         `${loc(`sr4.hud.tests.${key}`)} (${v1 + v2})`,
+          name:         `${loc(`sr4.hud.tests.${key}`)} (${total})`,
           img:          'icons/svg/d20.svg',
           encodedValue: `attrTest|${key}`,
-          tooltip:      `${loc(`sr4.hud.tests.${key}`)} · ${loc(`sr4.stats.${attr1}`)} ${v1} + ${loc(`sr4.stats.${attr2}`)} ${v2} = ${v1 + v2}`,
+          tooltip:      `${loc(`sr4.hud.tests.${key}`)} · ${loc(`sr4.stats.${attr1}`)} ${v1} + ${loc(`sr4.stats.${attr2}`)} ${v2} = ${total}`,
         };
       });
 
@@ -482,7 +545,7 @@ export function createActionHandler(coreModule) {
     #weaponAction(w) {
       const dmg   = w.system.effectiveDamage ?? w.system.damage ?? '?';
       const ap    = w.system.effectiveAP ?? w.system.ap ?? '?';
-      const stats = `${w.name} · DMG: ${dmg} AP: ${ap}`;
+      const stats = `${w.name} · ${loc('sr4.hud.weapons.damage')}: ${dmg} ${loc('sr4.hud.weapons.ap')}: ${ap}`;
 
       const hasAmmo = w.type === 'Ranged Weapon' && w.system.maxAmmo > 0;
       const hints   = [loc('sr4.hud.weapons.equipHint')];
@@ -521,38 +584,9 @@ export function createActionHandler(coreModule) {
         })
       );
 
-      this.#addLinkedActionsAndEffects(actor, spells, 'spells');
+      this.#addLinkedActionsAndEffects(actor, spells, 'magic', 'spells');
 
-      this.#addToGroup([
-        {
-          id:           'summon-spirit',
-          name:         loc('sr4.hud.magic.summonSpirit'),
-          img:          'icons/svg/aura.svg',
-          encodedValue: 'summon|spirit',
-          tooltip:      loc('sr4.hud.magic.summonSpiritTooltip'),
-        },
-        {
-          id:           'summon-watcher',
-          name:         loc('sr4.hud.magic.summonWatcher'),
-          img:          'icons/svg/eye.svg',
-          encodedValue: 'summon|watcher',
-          tooltip:      loc('sr4.hud.magic.summonWatcherTooltip'),
-        },
-        {
-          id:           'banish-spirit',
-          name:         loc('sr4.hud.magic.banishSpirit'),
-          img:          'icons/svg/falling.svg',
-          encodedValue: 'banish|spirit',
-          tooltip:      loc('sr4.hud.magic.banishSpiritTooltip'),
-        },
-        {
-          id:           'bind-spirit',
-          name:         loc('sr4.hud.magic.bindSpirit'),
-          img:          'icons/svg/net.svg',
-          encodedValue: 'bind|spirit',
-          tooltip:      loc('sr4.hud.magic.bindSpiritTooltip'),
-        },
-      ], 'magic', 'magic-summoning');
+      this.#addToGroup(SUMMONING_ACTIONS.map(fixedAction), 'magic', 'magic-summoning');
     }
 
     #spellTooltip(spell) {
@@ -572,30 +606,9 @@ export function createActionHandler(coreModule) {
     // Matrix (Programs + Compiling/Threading)
     // -----------------------------------------------------------------------
 
-    #matrixCombatActions({ jackOutAllowed }) {
-      const actions = [
-        {
-          id:           'matrix-attack',
-          name:         loc('sr4.hud.matrix.attack'),
-          img:          'icons/svg/lightning.svg',
-          encodedValue: 'matrixAttack|attack',
-          tooltip:      loc('sr4.hud.matrix.attackTooltip'),
-        },
-      ];
-      if (jackOutAllowed) {
-        actions.push({
-          id:           'matrix-jack-out',
-          name:         loc('sr4.hud.matrix.jackOut'),
-          img:          'icons/svg/net.svg',
-          encodedValue: 'jackOut|jackOut',
-          tooltip:      loc('sr4.hud.matrix.jackOutTooltip'),
-        });
-      }
-      return actions;
-    }
-
-    #addMatrixCombatActions(actor, jackOutAllowed) {
-      this.#addToGroup(this.#matrixCombatActions({ jackOutAllowed }), 'matrix', 'matrix-combat');
+    #addMatrixCombatActions(jackOutAllowed) {
+      const actions = jackOutAllowed ? [MATRIX_ATTACK_ACTION, JACK_OUT_ACTION] : [MATRIX_ATTACK_ACTION];
+      this.#addToGroup(actions.map(fixedAction), 'matrix', 'matrix-combat');
     }
 
     #buildMatrix(actor) {
@@ -625,41 +638,12 @@ export function createActionHandler(coreModule) {
       const hasMatrixAccess = actor.system.technomancy?.technomancer === true ||
         actor.items.some(i => i.type === 'Commlink' && i.system?.equipped);
       if (hasMatrixAccess) {
-        this.#addMatrixCombatActions(actor, !!actor.system.matrix?.jammedBy);
+        this.#addMatrixCombatActions(!!actor.system.matrix?.jammedBy);
       }
 
       if (!actor.system.technomancy?.technomancer) return;
 
-      this.#addToGroup([
-        {
-          id:           'compile-sprite',
-          name:         loc('sr4.hud.matrix.compileSprite'),
-          img:          'icons/svg/aura.svg',
-          encodedValue: 'summon|sprite',
-          tooltip:      loc('sr4.hud.matrix.compileSpriteTooltip'),
-        },
-        {
-          id:           'thread-complex-form',
-          name:         loc('sr4.hud.matrix.threadComplexForm'),
-          img:          'icons/svg/d20.svg',
-          encodedValue: 'threading|thread',
-          tooltip:      loc('sr4.hud.matrix.threadComplexFormTooltip'),
-        },
-        {
-          id:           'decompile-sprite',
-          name:         loc('sr4.hud.matrix.decompileSprite'),
-          img:          'icons/svg/downgrade.svg',
-          encodedValue: 'decompile|sprite',
-          tooltip:      loc('sr4.hud.matrix.decompileSpriteTooltip'),
-        },
-        {
-          id:           'bind-sprite',
-          name:         loc('sr4.hud.matrix.bindSprite'),
-          img:          'icons/svg/net.svg',
-          encodedValue: 'bind|sprite',
-          tooltip:      loc('sr4.hud.matrix.bindSpriteTooltip'),
-        },
-      ], 'matrix', 'matrix-resonance');
+      this.#addToGroup(RESONANCE_ACTIONS.map(fixedAction), 'matrix', 'matrix-resonance');
     }
 
     // -----------------------------------------------------------------------
@@ -686,7 +670,7 @@ export function createActionHandler(coreModule) {
       const items = actor.items.filter(i => i.type === 'Action' && !i.system.linkedItemId);
       if (!items.length) return;
 
-      const categories = this.#actionCategories();
+      const categories = actionCategories();
 
       const uncategorized = items
         .filter(a => !categories.includes(a.system.category))

@@ -11,16 +11,8 @@ import {
 } from './constants.js';
 import { createActionHandler } from './action-handler.js';
 import { createRollHandler }   from './roll-handler.js';
-
-// Shared i18n helper — imported by the other modules
-export const loc = (key) => game.i18n.localize(key);
-
-export function collectArmor(actor) {
-  return {
-    ballistic: actor.system.armor?.ballistic ?? 0,
-    impact:    actor.system.armor?.impact    ?? 0,
-  };
-}
+import { registerLinkRefresh } from './link-refresh.js';
+import { loc }                 from './utils.js';
 
 // ---------------------------------------------------------------------------
 // Helpers for registerDefaults
@@ -75,6 +67,7 @@ function createSystemManager(coreModule) {
             layoutGroup('basics_basics-tests',           'basics-tests',           'sr4.hud.tests.tab'),
             layoutGroup('basics_basics-control-mode',    'basics-control-mode',    'sr4.hud.vehicle.controlMode'),
             layoutGroup('basics_basics-drone-actions',   'basics-drone-actions',   'sr4.hud.vehicle.droneActions'),
+            layoutGroup('basics_basics-links',           'basics-links',           'sr4.hud.links.tab'),
           ],
         },
         {
@@ -158,6 +151,7 @@ Hooks.once('tokenActionHudCoreApiReady', async (coreModule) => {
   const module = game.modules.get(MODULE_ID);
 
   module.api = { SystemManager: createSystemManager(coreModule) };
+  registerLinkRefresh();
 
   console.log('[SR4-HUD] Registering module API');
   Hooks.call('tokenActionHudSystemReady', module);
